@@ -1,0 +1,18 @@
+{
+  "name": "VehicleSystem.Unity",
+  "rootNamespace": "",
+  "references": [
+    "GUID:9af5e5addf6ce7349b91eae49dde9ccc",
+    "GUID:1139531e2a3a6bd4c8ad2bc68ae00719",
+    "GUID:75469ad4d38634e559750d17036d5f7c"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

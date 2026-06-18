@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 970376cf34b5e994c9003c3894620635, type: 3}
+  m_Name: DrivingAssistsModuleConfig
+  m_EditorClassIdentifier: VehicleSystem.Unity::Unity.GeneratedConfigs.DrivingAssistsModuleConfig
+  data:
+    maxBrakeForce: 4000
+    enableABS: 0
+    absSlipThreshold: 0.15
+    absSensitivity: 8
+    enableTCS: 0
+    tcsSlipThreshold: 0.15
+    tcsThrottleSensitivity: 5
+    tcsBrakeSlipThreshold: 0.25
+    tcsBrakeSensitivity: 3
+    tcsMaxBrakeForcePercent: 0.4
+    enableESP: 0
+    espSlipAngleThreshold: 12
+    espThrottleSensitivity: 0.1

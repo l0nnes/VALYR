@@ -1,0 +1,74 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2dcd88c4a10de8549b7866e8c07ebc93, type: 3}
+  m_Name: TireModuleConfig 1
+  m_EditorClassIdentifier: VehicleSystem.Unity::Unity.GeneratedConfigs.TireModuleConfig
+  data:
+    friction:
+      longitudinalFree:
+        points:
+        - slip: 0
+          value: 0
+        - slip: 0.08
+          value: 0.9
+        - slip: 0.16
+          value: 1.12
+        - slip: 0.55
+          value: 0.92
+        - slip: 1
+          value: 0.78
+      longitudinalAtMaxLateral:
+        points:
+        - slip: 0
+          value: 0
+        - slip: 0.12
+          value: 0.55
+        - slip: 0.4
+          value: 0.48
+        - slip: 1
+          value: 0.38
+      lateralFree:
+        points:
+        - slip: 0
+          value: 0
+        - slip: 3
+          value: 0.75
+        - slip: 7
+          value: 1.08
+        - slip: 16
+          value: 0.92
+        - slip: 32
+          value: 0.76
+      lateralAtMaxLongitudinal:
+        points:
+        - slip: 0
+          value: 0
+        - slip: 5
+          value: 0.45
+        - slip: 14
+          value: 0.38
+        - slip: 32
+          value: 0.28
+      maxCombinedSlipRatio: 0.75
+      maxCombinedSlipAngle: 22
+    safetyGripMultiplier: 1.15
+    rollingResistance: 0.015
+    groundedAngularDamping: 0.02
+    airAngularDamping: 0.12
+    lowSpeedSlipReference: 1.5
+    longitudinalSlipVelocityDeadZone: 0.04
+    lateralSlipVelocityDeadZone: 0.03
+    maxSlipRatio: 2
+    visualAngularVelocitySmoothing: 18
+    airVisualAngularVelocitySmoothing: 10
+    visualRollingBlendSlip: 0.08
+    handbrakeTorque: 5000
