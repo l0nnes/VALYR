@@ -120,8 +120,16 @@ namespace VALYR.Runtime.UI
                             GUIStyle slipStyle = (Mathf.Abs(ws.SlipRatio) > 0.25f || Mathf.Abs(ws.SlipAngle) > 0.2f) ? _yellowStyle : _labelStyle;
                             GUILayout.Label($"Slip Ratio: {ws.SlipRatio:+0.00;-0.00;0.00}", slipStyle);
                             GUILayout.Label($"Slip Angle: {ws.SlipAngle * Mathf.Rad2Deg:+0.0;-0.0;0.0}°", slipStyle);
-                            GUILayout.Label($"Сила Fx (тяга): {ws.TireForce.z:F0} Н", _labelStyle);
-                            GUILayout.Label($"Сила Fy (бок): {ws.TireForce.x:F0} Н", _labelStyle);
+
+                            Vector3 carForward = _controller.transform.forward;
+                            Vector3 carUp = _controller.transform.up;
+                            Vector3 wheelForward = Quaternion.AngleAxis(ws.SteerAngle * Mathf.Rad2Deg, carUp) * carForward;
+                            Vector3 wheelRight = Vector3.Cross(carUp, wheelForward);
+                            float fxLocal = Vector3.Dot(ws.TireForce, wheelForward);
+                            float fyLocal = Vector3.Dot(ws.TireForce, wheelRight);
+
+                            GUILayout.Label($"Сила Fx (тяга): {fxLocal:+0;-0;0} Н", _labelStyle);
+                            GUILayout.Label($"Сила Fy (бок): {fyLocal:+0;-0;0} Н", _labelStyle);
                             GUILayout.Label($"Skid: {ws.SkidIntensity * 100f:F0}%", ws.SkidIntensity > 0.3f ? _yellowStyle : _labelStyle);
                         }
                         GUILayout.EndVertical();

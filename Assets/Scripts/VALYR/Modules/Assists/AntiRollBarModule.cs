@@ -16,10 +16,10 @@ namespace VALYR.Modules.Assists
     {
         [Header("Жесткость стабилизаторов")]
         [Tooltip("Жесткость переднего стабилизатора поперечной устойчивости (Ньютоны / метр)")]
-        public float FrontStiffness = 8000f;
+        public float FrontStiffness = 4500f;
 
         [Tooltip("Жесткость заднего стабилизатора поперечной устойчивости (Ньютоны / метр)")]
-        public float RearStiffness = 5000f;
+        public float RearStiffness = 2200f;
 
         public AntiRollBarModule()
         {

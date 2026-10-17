@@ -14,32 +14,38 @@ namespace VALYR.Modules.Powertrain
     {
         [Header("Обороты двигателя (RPM)")]
         [Tooltip("Обороты холостого хода (RPM)")]
-        public float IdleRpm = 850f;
+        public float IdleRpm = 750f;
 
         [Tooltip("Обороты срабатывания отсечки топлива (RPM)")]
-        public float RevLimiterRpm = 7000f;
+        public float RevLimiterRpm = 6500f;
 
         [Tooltip("Максимальные допустимые обороты (RPM)")]
-        public float MaxRpm = 7500f;
+        public float MaxRpm = 6800f;
+
+        [Tooltip("Обороты сваливания гидротрансформатора при заблокированных колесах и 100% газе (RPM)")]
+        public float StallRpm = 2300f;
 
         [Header("Крутящий момент")]
         [Tooltip("Максимальный пиковый крутящий момент мотора (Нм)")]
-        public float MaxTorque = 420f;
+        public float MaxTorque = 155f;
 
         [Tooltip("Момент сопротивления / торможения двигателем при сбросе газа (Нм)")]
-        public float EngineBrakingTorque = 50f;
+        public float EngineBrakingTorque = 35f;
 
         [Tooltip("Момент инерции маховика и коленвала (кг*м^2, обычно 0.15..0.35)")]
-        public float FlywheelInertia = 0.22f;
+        public float FlywheelInertia = 0.16f;
+
+        [Tooltip("Коэффициент умножения момента гидротрансформатором при старте с места (1.8..2.2)")]
+        public float TorqueConverterMultiplication = 1.85f;
 
         [Header("Кривая крутящего момента")]
         [Tooltip("Нормализованная кривая крутящего момента (по X: нормализованные обороты 0..1, по Y: множитель момента 0..1)")]
         public AnimationCurve TorqueCurve = new(
-            new Keyframe(0f, 0.45f),
-            new Keyframe(0.2f, 0.75f),
-            new Keyframe(0.55f, 1.0f),
-            new Keyframe(0.85f, 0.90f),
-            new Keyframe(1.0f, 0.70f)
+            new Keyframe(0f, 0.65f),
+            new Keyframe(0.25f, 0.85f),
+            new Keyframe(0.65f, 1.0f),
+            new Keyframe(0.90f, 0.92f),
+            new Keyframe(1.0f, 0.78f)
         );
 
         private const float RadPerSecToRpm = 60f / (2f * Mathf.PI);
@@ -85,17 +91,30 @@ namespace VALYR.Modules.Powertrain
             // 3. Динамика оборотов двигателя
             if (!feedback.IsDisengaged && feedback.ClutchEngagement > 0.05f)
             {
-                // Сцепление замкнуто: обороты коленвала физически синхронизируются с трансмиссией
-                float targetRpm = Mathf.Max(feedback.DrivetrainRpm, IdleRpm);
+                // Гидротрансформатор / эластичное сцепление старта:
+                // При малых оборотах трансмиссии или остановке на передаче мотор развивает обороты сваливания (StallRpm)
+                float stallTargetRpm = Mathf.Lerp(IdleRpm, StallRpm, effectiveThrottle);
+                float targetRpm = Mathf.Max(feedback.DrivetrainRpm, stallTargetRpm);
+
                 float syncRate = 18f * feedback.ClutchEngagement;
                 currentRpm = Mathf.Lerp(currentRpm, targetRpm, 1f - Mathf.Exp(-syncRate * dt));
 
+                // Умножение момента гидротрансформатором при трогании с места
+                float speedRatio = Mathf.Clamp01(feedback.DrivetrainRpm / Mathf.Max(currentRpm, 1f));
+                float torqueMultiplierConverter = Mathf.Lerp(TorqueConverterMultiplication, 1.0f, speedRatio);
+
                 // Двигатель отдает момент в трансмиссию
-                float engineDriveTorque = availableTorque * effectiveThrottle;
-                // Торможение двигателем при закрытом дросселе
-                if (effectiveThrottle < 0.05f)
+                float engineDriveTorque = (availableTorque * effectiveThrottle) * torqueMultiplierConverter;
+
+                // Торможение двигателем при закрытом дросселе на ходу
+                if (effectiveThrottle < 0.05f && feedback.DrivetrainRpm > IdleRpm + 150f)
                 {
                     engineDriveTorque -= EngineBrakingTorque * (currentRpm / MaxRpm);
+                }
+                else if (effectiveThrottle < 0.05f && feedback.DrivetrainRpm < 400f)
+                {
+                    // Ползущий режим АКПП (Creep Mode) при отпущенных педалях
+                    engineDriveTorque = 22f;
                 }
 
                 output.OutputTorque = engineDriveTorque;

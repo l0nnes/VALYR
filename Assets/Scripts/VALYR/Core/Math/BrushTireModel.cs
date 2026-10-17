@@ -26,10 +26,10 @@ namespace VALYR.Core.Math
 
         public static BrushTireParameters Default => new()
         {
-            LongitudinalStiffness = 35000f,
-            LateralStiffness = 28000f,
-            FrictionCoefficientX = 1.15f,
-            FrictionCoefficientY = 1.10f,
+            LongitudinalStiffness = 22000f,
+            LateralStiffness = 18000f,
+            FrictionCoefficientX = 1.00f,
+            FrictionCoefficientY = 0.95f,
             LowSpeedThreshold = 0.5f
         };
     }

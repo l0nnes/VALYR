@@ -23,8 +23,8 @@ namespace VALYR.Modules.Tires
         public BrushTireParameters RearTires = BrushTireParameters.Default;
 
         [Header("Инерция колеса")]
-        [Tooltip("Момент инерции колеса и тормозного диска (кг*м^2, обычно 1.2..2.0)")]
-        public float WheelInertia = 1.5f;
+        [Tooltip("Момент инерции колеса и тормозного диска (кг*м^2, обычно 1.0..1.5)")]
+        public float WheelInertia = 1.1f;
 
         public BrushTireModule()
         {

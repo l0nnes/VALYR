@@ -3,6 +3,7 @@ using UnityEngine;
 using VALYR.Core;
 using VALYR.Core.Adapters;
 using VALYR.Core.Interfaces;
+using VALYR.Core.Math;
 using VALYR.Core.Modules;
 using VALYR.Modules.Assists;
 using VALYR.Modules.Powertrain;
@@ -33,7 +34,7 @@ namespace VALYR.Runtime
                 new Vector3(0.70f, 0.655f, -1.20f)   // RR
             ),
             WheelRadii = new WheelData4<float>(0.31f, 0.31f, 0.31f, 0.31f),
-            ChassisMass = 1500f
+            ChassisMass = 1180f
         };
 
         [Header("Слои дорожного покрытия")]
@@ -71,36 +72,105 @@ namespace VALYR.Runtime
 
         private void Reset()
         {
-            ApplyDefaultConfig();
+            ApplyCivilianSedanPreset();
         }
 
         private void OnValidate()
         {
-            ApplyDefaultConfig();
-        }
-
-        public void ApplyDefaultConfig()
-        {
-            GroundLayers = ~((1 << 2) | (1 << 3));
-            if (Suspension != null)
-            {
-                Suspension.SurfaceLayers = GroundLayers;
-                Suspension.FrontAxle.RestLength = 0.35f;
-                Suspension.RearAxle.RestLength = 0.35f;
-                Suspension.FrontAxle.DamperCompressionRate = 4200f;
-                Suspension.FrontAxle.DamperReboundRate = 5600f;
-                Suspension.RearAxle.DamperCompressionRate = 3800f;
-                Suspension.RearAxle.DamperReboundRate = 5200f;
-            }
             if (_visualView == null)
                 _visualView = GetComponent<VehicleVisualView>();
         }
 
+        [ContextMenu("Apply Civilian Sedan Preset (Solaris / Logan)")]
+        public void ApplyCivilianSedanPreset()
+        {
+            GroundLayers = ~((1 << 2) | (1 << 3));
+            ChassisConfig.ChassisMass = 1180f;
+
+            if (Suspension != null)
+            {
+                Suspension.SurfaceLayers = GroundLayers;
+                Suspension.FrontAxle = SuspensionAxleSettings.DefaultFront;
+                Suspension.RearAxle = SuspensionAxleSettings.DefaultRear;
+            }
+
+            if (Engine != null)
+            {
+                Engine.IdleRpm = 750f;
+                Engine.RevLimiterRpm = 6500f;
+                Engine.MaxRpm = 6800f;
+                Engine.StallRpm = 2300f;
+                Engine.MaxTorque = 155f;
+                Engine.EngineBrakingTorque = 35f;
+                Engine.FlywheelInertia = 0.16f;
+                Engine.TorqueConverterMultiplication = 1.85f;
+                Engine.TorqueCurve = new AnimationCurve(
+                    new Keyframe(0f, 0.65f),
+                    new Keyframe(0.25f, 0.85f),
+                    new Keyframe(0.65f, 1.0f),
+                    new Keyframe(0.90f, 0.92f),
+                    new Keyframe(1.0f, 0.78f)
+                );
+            }
+
+            if (Transmission != null)
+            {
+                Transmission.Drivetrain = DrivetrainType.FrontWheelDrive;
+                Transmission.ReverseGearRatio = -3.487f;
+                Transmission.ForwardGearRatios = new[] { 3.612f, 2.085f, 1.370f, 1.039f, 0.778f, 0.633f };
+                Transmission.FinalDriveRatio = 3.943f;
+                Transmission.TransmissionEfficiency = 0.90f;
+                Transmission.AutomaticShift = true;
+                Transmission.ShiftUpRpm = 5800f;
+                Transmission.ShiftDownRpm = 1900f;
+                Transmission.ShiftDuration = 0.25f;
+                Transmission.MaxBrakeTorque = 1800f;
+                Transmission.FrontBrakeBias = 0.72f;
+                Transmission.MaxHandbrakeTorque = 2400f;
+            }
+
+            if (AntiRollBar != null)
+            {
+                AntiRollBar.FrontStiffness = 4500f;
+                AntiRollBar.RearStiffness = 2200f;
+            }
+
+            if (Tires != null)
+            {
+                Tires.FrontTires = BrushTireParameters.Default;
+                Tires.RearTires = BrushTireParameters.Default;
+                Tires.WheelInertia = 1.1f;
+            }
+
+            if (_rigidbody != null)
+            {
+                _rigidbody.mass = ChassisConfig.ChassisMass;
+                _rigidbody.centerOfMass = new Vector3(0f, -0.22f, 0.12f);
+            }
+
+            if (_visualView == null)
+                _visualView = GetComponent<VehicleVisualView>();
+        }
+
+        [Header("Авто-применение пресета")]
+        [Tooltip("Автоматически применить эталонные настройки гражданского седана (Solaris / Logan)")]
+        public bool AutoApplyCivilianPreset = true;
+
         private void Awake()
         {
-            ApplyDefaultConfig();
             _rigidbody = GetComponent<Rigidbody>();
             _inputReader = GetComponent<VehicleInputReader>();
+
+            if (AutoApplyCivilianPreset)
+            {
+                ApplyCivilianSedanPreset();
+            }
+
+            if (_rigidbody != null)
+            {
+                _rigidbody.mass = ChassisConfig.ChassisMass;
+                _rigidbody.centerOfMass = new Vector3(0f, -0.22f, 0.12f);
+            }
 
             if (_visualView == null)
                 _visualView = GetComponent<VehicleVisualView>();
