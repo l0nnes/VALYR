@@ -103,6 +103,18 @@ namespace VALYR.Modules.Tires
                 float sigmaY = (tireParams.LateralStiffness * slipAngle) / maxFy;
                 float rawFy = maxFy * Mathf.Clamp(sigmaY, -1f, 1f);
 
+                // Защита от низкоскоростного численного дребезга (chatter):
+                // При скоростях < 1.0 м/с боковая сила не должна превышать силу, необходимую для остановки бокового смещения
+                if (contactSpeed < 1.0f)
+                {
+                    float quarterMass = chassis.ChassisMass * 0.25f;
+                    float maxLateralStoppingForce = (quarterMass * Mathf.Abs(vy)) / dt;
+                    if (Mathf.Abs(rawFy) > maxLateralStoppingForce)
+                    {
+                        rawFy = Mathf.Sign(rawFy) * maxLateralStoppingForce;
+                    }
+                }
+
                 // 2. Безусловно устойчивый полунеявный расчет продольной динамики и силы Fx
                 WheelDynamics.IntegrateContact(
                     wheel.AngularVelocity,

@@ -66,18 +66,31 @@ namespace VALYR.Core.Math
             float r = wheelRadius;
             float vDenom = Mathf.Max(Mathf.Abs(forwardSpeed), 0.5f);
 
-            // Тормозной момент: не должен вращать колесо в обратную сторону
-            float maxBrake = (Mathf.Abs(currentOmega) * wheelInertia) / dt;
-            float effectiveBrake = Mathf.Min(brakeTorque, maxBrake) * Mathf.Sign(currentOmega);
+            // 1. Свободное вращение под действием привода, сопротивления подшипников и сцепления шины (без тормозов)
             float bearingDrag = 1.0f * currentOmega;
-
-            float netExternalTorque = driveTorque - effectiveBrake - bearingDrag;
+            float netDriveTorque = driveTorque - bearingDrag;
 
             // Коэффициент неявной жесткости: K = (Cx * R^2 * dt) / vDenom
             float kImplicit = (longitudinalStiffness * r * r * dt) / vDenom;
+            float effectiveInertia = wheelInertia + kImplicit;
 
-            // Целевая угловая скорость при нахождении в зоне упругого сцепления
-            float targetOmega = (wheelInertia * currentOmega + netExternalTorque * dt + (longitudinalStiffness * r * dt / vDenom) * forwardSpeed) / (wheelInertia + kImplicit);
+            // Свободная угловая скорость колеса до приложения дискового/стояночного тормоза
+            float omegaFree = (wheelInertia * currentOmega + netDriveTorque * dt + (longitudinalStiffness * r * dt / vDenom) * forwardSpeed) / effectiveInertia;
+
+            // 2. Точный расчет тормозного момента: если тормоз способен остановить колесо, он блокирует его (omega = 0)
+            float torqueToStop = (Mathf.Abs(omegaFree) * effectiveInertia) / dt;
+            float targetOmega;
+
+            if (brakeTorque >= torqueToStop && brakeTorque > 0.001f)
+            {
+                // Тормоз полностью удерживает / блокирует колесо
+                targetOmega = 0f;
+            }
+            else
+            {
+                // Тормоз замедляет колесо
+                targetOmega = omegaFree - Mathf.Sign(omegaFree) * (brakeTorque * dt / effectiveInertia);
+            }
 
             // Продольный slip ratio на следующем шаге
             longitudinalSlip = (targetOmega * r - forwardSpeed) / vDenom;
@@ -89,8 +102,13 @@ namespace VALYR.Core.Math
             {
                 // Проскальзывание / пробуксовка (выход за пределы эллипса сцепления)
                 appliedFx = Mathf.Sign(rawFx) * maxFx;
-                float netTorque = netExternalTorque - appliedFx * r;
-                nextOmega = currentOmega + (netTorque / wheelInertia) * dt;
+
+                float netTorque = driveTorque - appliedFx * r - bearingDrag;
+                float freeAccel = netTorque / wheelInertia;
+                float stopBrakeTorque = (Mathf.Abs(currentOmega + freeAccel * dt) * wheelInertia) / dt;
+                float effectiveBrake = Mathf.Min(brakeTorque, stopBrakeTorque) * Mathf.Sign(currentOmega + freeAccel * dt);
+
+                nextOmega = currentOmega + ((netTorque - effectiveBrake) / wheelInertia) * dt;
                 longitudinalSlip = (nextOmega * r - forwardSpeed) / vDenom;
             }
             else

@@ -111,10 +111,10 @@ namespace VALYR.Modules.Powertrain
                 {
                     engineDriveTorque -= EngineBrakingTorque * (currentRpm / MaxRpm);
                 }
-                else if (effectiveThrottle < 0.05f && feedback.DrivetrainRpm < 400f)
+                else if (state.CurrentGear == 1 && effectiveThrottle < 0.05f && input.Brake < 0.05f && input.Handbrake < 0.05f && feedback.DrivetrainRpm < 350f)
                 {
-                    // Ползущий режим АКПП (Creep Mode) при отпущенных педалях
-                    engineDriveTorque = 22f;
+                    // Ползущий режим АКПП (Creep Mode) только на 1 передаче при полностью отпущенных тормозах и выключенном ручнике
+                    engineDriveTorque = 15f;
                 }
 
                 output.OutputTorque = engineDriveTorque;

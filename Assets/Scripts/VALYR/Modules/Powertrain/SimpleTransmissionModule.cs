@@ -67,6 +67,8 @@ namespace VALYR.Modules.Powertrain
 
         private const float RadPerSecToRpm = 60f / (2f * Mathf.PI);
         private float _reverseHoldTimer;
+        private float _shiftCooldownTimer;
+        private bool _requireBrakeReleaseForReverse;
 
         public SimpleTransmissionModule()
         {
@@ -95,18 +97,26 @@ namespace VALYR.Modules.Powertrain
                 state.ClutchEngagement = 1f;
             }
 
+            if (_shiftCooldownTimer > 0f)
+            {
+                _shiftCooldownTimer -= dt;
+            }
+
             // 1. Таймер переключения передачи
             if (state.ShiftTimer > 0f)
             {
                 state.ShiftTimer -= dt;
+                state.ClutchEngagement = 0.05f;
+
+                // Синхронизация оборотов мотора со следующей передачей (Rev Matching)
+                float nextGearRatio = GetGearRatio(state.CurrentGear);
+                float targetGearRpm = Mathf.Abs(GetDrivenWheelsAverageAngularVelocity(in state) * nextGearRatio * FinalDriveRatio) * RadPerSecToRpm;
+                state.EngineRpm = Mathf.Lerp(state.EngineRpm, Mathf.Max(targetGearRpm, 750f), 1f - Mathf.Exp(-14f * dt));
+
                 if (state.ShiftTimer <= 0f)
                 {
                     state.ShiftTimer = 0f;
                     state.ClutchEngagement = 1f;
-                }
-                else
-                {
-                    state.ClutchEngagement = 0.1f;
                 }
             }
             else
@@ -115,7 +125,7 @@ namespace VALYR.Modules.Powertrain
             }
 
             // 2. Логика автоматического переключения передач
-            if (AutomaticShift && state.ShiftTimer <= 0f)
+            if (AutomaticShift && state.ShiftTimer <= 0f && _shiftCooldownTimer <= 0f)
             {
                 UpdateAutoShift(in input, ref state, in chassis, dt);
             }
@@ -130,13 +140,25 @@ namespace VALYR.Modules.Powertrain
 
             if (state.CurrentGear == -1)
             {
-                // Задний ход: тормоз (S) управляет реверсивной тягой, газ (W) тормозит
-                driveDemand = Mathf.Clamp01(input.Brake);
-                brakeDemand = Mathf.Clamp01(input.Throttle);
+                // Защита от резкого толчка назад при торможении: требуем сначала отпустить педаль тормоза
+                if (_requireBrakeReleaseForReverse)
+                {
+                    if (input.Brake < 0.1f)
+                    {
+                        _requireBrakeReleaseForReverse = false;
+                    }
+                    driveDemand = 0f;
+                    brakeDemand = 1.0f;
+                }
+                else
+                {
+                    driveDemand = Mathf.Clamp01(input.Brake);
+                    brakeDemand = Mathf.Clamp01(input.Throttle);
+                }
             }
             else
             {
-                // Передний ход: газ (W) управляет тягой вперед, тормоз (S) тормозит
+                _requireBrakeReleaseForReverse = false;
                 driveDemand = Mathf.Clamp01(input.Throttle);
                 brakeDemand = Mathf.Clamp01(input.Brake);
             }
@@ -226,15 +248,17 @@ namespace VALYR.Modules.Powertrain
 
             float vehicleGroundSpeed = GetVehicleGroundSpeed(in state, in chassis);
 
-            // Переход на заднюю передачу при осознанном удержании тормоза на полной остановке
-            if (gear >= 1 && vehicleGroundSpeed < 0.4f && input.Brake > 0.6f && input.Throttle < 0.05f)
+            // Переход на заднюю передачу при осознанном удержании тормоза на ПОЛНОЙ остановке
+            if (gear >= 1 && vehicleGroundSpeed < 0.15f && input.Brake > 0.6f && input.Throttle < 0.05f)
             {
                 _reverseHoldTimer += dt;
-                if (_reverseHoldTimer > 0.35f)
+                if (_reverseHoldTimer > 0.85f)
                 {
                     state.CurrentGear = -1;
                     state.ShiftTimer = ShiftDuration;
+                    _shiftCooldownTimer = 0.5f;
                     _reverseHoldTimer = 0f;
+                    _requireBrakeReleaseForReverse = true;
                     return;
                 }
             }
@@ -243,23 +267,25 @@ namespace VALYR.Modules.Powertrain
                 _reverseHoldTimer = 0f;
             }
 
-            // Переход из задней передачи в 1-ю вперед при нажатии газа на замедленной машине
-            if (gear == -1 && input.Throttle > 0.2f && vehicleGroundSpeed < 0.5f)
+            // Переход из задней передачи в 1-ю вперед при нажатии газа на остановленной машине
+            if (gear == -1 && input.Throttle > 0.2f && vehicleGroundSpeed < 0.4f)
             {
                 state.CurrentGear = 1;
                 state.ShiftTimer = ShiftDuration;
+                _shiftCooldownTimer = 0.5f;
                 return;
             }
 
             // Переключение вперед (1 -> 2 -> ... -> N)
-            // Защита от переключения на повышенную передачу при пробуксовке на месте: требует реальной линейной скорости
+            // Требует достижения реальной расчетной скорости передачи для предотвращения перескока передач
             if (gear >= 1 && ForwardGearRatios != null && gear < ForwardGearRatios.Length)
             {
-                float minSpeedForUpshift = gear * 3.5f; // 1->2: ~12 км/ч, 2->3: ~25 км/ч...
+                float minSpeedForUpshift = GetGearMaxSpeed(gear, in chassis) * 0.78f;
                 if (rpm > ShiftUpRpm && vehicleGroundSpeed > minSpeedForUpshift)
                 {
                     state.CurrentGear = gear + 1;
                     state.ShiftTimer = ShiftDuration;
+                    _shiftCooldownTimer = 1.0f; // Запрет следующего переключения вверх минимум на 1.0 с
                     return;
                 }
             }
@@ -267,13 +293,24 @@ namespace VALYR.Modules.Powertrain
             // Переключение вниз (N -> ... -> 2 -> 1)
             if (gear > 1)
             {
-                float minSpeedForCurrentGear = (gear - 1) * 2.8f;
+                float minSpeedForCurrentGear = GetGearMaxSpeed(gear - 1, in chassis) * 0.65f;
                 if (rpm < ShiftDownRpm || vehicleGroundSpeed < minSpeedForCurrentGear)
                 {
                     state.CurrentGear = gear - 1;
                     state.ShiftTimer = ShiftDuration;
+                    _shiftCooldownTimer = 0.8f;
                 }
             }
+        }
+
+        private float GetGearMaxSpeed(int gear, in VehicleChassisConfig chassis)
+        {
+            float ratio = GetGearRatio(gear);
+            if (Mathf.Abs(ratio) <= 0.01f) return 100f;
+            float totalRatio = Mathf.Abs(ratio * FinalDriveRatio);
+            float wheelRadius = chassis.WheelRadii[0];
+            float maxWheelOmega = (ShiftUpRpm / RadPerSecToRpm) / totalRatio;
+            return maxWheelOmega * wheelRadius;
         }
 
         private float GetVehicleGroundSpeed(in VehicleState state, in VehicleChassisConfig chassis)
