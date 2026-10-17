@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "com.baytak.customtoolbar": "https://github.com/FurkanBaytak/unity-baytak-custom-main-toolbar.git#main",
+    "com.coplaydev.unity-mcp": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#main",
     "com.dcfa_pixels.debugx": "https://github.com/DCFApixels/Unity-DebugX.git",
     "com.unity.ai.navigation": "2.0.15",
     "com.unity.cinemachine": "6.6.0",
