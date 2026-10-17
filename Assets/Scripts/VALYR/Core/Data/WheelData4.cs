@@ -71,5 +71,14 @@ namespace VALYR.Core
                 default: throw new IndexOutOfRangeException($"Wheel index {index} is out of range [0..3].");
             }
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Reset(ref this WheelData4<WheelActuation> data, float maxLimit = float.MaxValue)
+        {
+            data.FL.Reset(maxLimit);
+            data.FR.Reset(maxLimit);
+            data.RL.Reset(maxLimit);
+            data.RR.Reset(maxLimit);
+        }
     }
 }

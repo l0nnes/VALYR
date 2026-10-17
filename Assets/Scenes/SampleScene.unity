@@ -6538,6 +6538,19 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 90}
+--- !u!134 &635819261
+PhysicsMaterial:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Car (Instance)
+  serializedVersion: 2
+  m_DynamicFriction: 0
+  m_StaticFriction: 0
+  m_Bounciness: 0
+  m_FrictionCombine: 2
+  m_BounceCombine: 2
 --- !u!1 &737085618
 GameObject:
   m_ObjectHideFlags: 0
@@ -8901,6 +8914,19 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 90}
+--- !u!134 &791373732
+PhysicsMaterial:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Car (Instance)
+  serializedVersion: 2
+  m_DynamicFriction: 0
+  m_StaticFriction: 0
+  m_Bounciness: 0
+  m_FrictionCombine: 2
+  m_BounceCombine: 2
 --- !u!1 &801507644
 GameObject:
   m_ObjectHideFlags: 0
@@ -10321,6 +10347,9 @@ GameObject:
   m_Component:
   - component: {fileID: 834320176}
   - component: {fileID: 834320175}
+  - component: {fileID: 834320179}
+  - component: {fileID: 834320178}
+  - component: {fileID: 834320177}
   m_Layer: 3
   m_Name: Erebus
   m_TagString: Untagged
@@ -10374,6 +10403,287 @@ Transform:
   - {fileID: 1073579278}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &834320177
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 834320173}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 913f9a5b20dbb4749a34eae3a26b181e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: VALYR.Runtime::VALYR.Runtime.VehicleController
+  ChassisConfig:
+    WheelOffsets:
+      FL: {x: -0.7, y: 0.655, z: 1.25}
+      FR: {x: 0.7, y: 0.655, z: 1.25}
+      RL: {x: -0.7, y: 0.655, z: -1.2}
+      RR: {x: 0.7, y: 0.655, z: -1.2}
+    WheelRadii:
+      FL: 0.31
+      FR: 0.31
+      RL: 0.31
+      RR: 0.31
+    ChassisMass: 1500
+  GroundLayers:
+    serializedVersion: 2
+    m_Bits: 4294967283
+  Suspension:
+    ModuleId: Suspension.Raycast
+    IsEnabled: 1
+    FrontAxle:
+      RestLength: 0.35
+      MaxTravel: 0.25
+      SpringStiffness: 38000
+      DamperCompressionRate: 3200
+      DamperReboundRate: 4800
+      BumpStopThresholdRatio: 0.8
+      BumpStopStiffness: 160000
+    RearAxle:
+      RestLength: 0.35
+      MaxTravel: 0.25
+      SpringStiffness: 34000
+      DamperCompressionRate: 2900
+      DamperReboundRate: 4400
+      BumpStopThresholdRatio: 0.8
+      BumpStopStiffness: 160000
+    SurfaceLayers:
+      serializedVersion: 2
+      m_Bits: 4294967283
+  Steering:
+    ModuleId: Steering.Direct
+    IsEnabled: 1
+    MaxSteerAngleDeg: 36
+    EnableSpeedSensitivity: 1
+    MinSteerAngleAtHighSpeedDeg: 12
+    HighSpeedThreshold: 40
+    SteeringResponseRate: 16
+    UseAckermann: 1
+  Engine:
+    ModuleId: Powertrain.Engine
+    IsEnabled: 1
+    IdleRpm: 850
+    RevLimiterRpm: 7000
+    MaxRpm: 7500
+    MaxTorque: 420
+    EngineBrakingTorque: 50
+    FlywheelInertia: 0.22
+    TorqueCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0.45
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 0.2
+        value: 0.75
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 0.55
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 0.85
+        value: 0.9
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 0.7
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+  Transmission:
+    ModuleId: Powertrain.Transmission
+    IsEnabled: 1
+    Drivetrain: 0
+    FrontTorqueSplitAwd: 0.4
+    ReverseGearRatio: -3.5
+    ForwardGearRatios:
+    - 3.82
+    - 2.36
+    - 1.69
+    - 1.31
+    - 1
+    - 0.79
+    FinalDriveRatio: 3.9
+    TransmissionEfficiency: 0.92
+    AutomaticShift: 1
+    ShiftUpRpm: 6200
+    ShiftDownRpm: 2500
+    ShiftDuration: 0.2
+    MaxBrakeTorque: 2500
+    FrontBrakeBias: 0.65
+    MaxHandbrakeTorque: 3500
+  AntiRollBar:
+    ModuleId: Assists.AntiRollBar
+    IsEnabled: 1
+    FrontStiffness: 8000
+    RearStiffness: 5000
+  Abs:
+    ModuleId: Assists.ABS
+    IsEnabled: 1
+    SlipThreshold: -0.18
+    MinSpeedThreshold: 2.5
+    PressureReleaseRatio: 0.35
+  Tcs:
+    ModuleId: Assists.TCS
+    IsEnabled: 1
+    SlipThreshold: 0.2
+    TorqueReductionRatio: 0.35
+  Tires:
+    ModuleId: Tires.Brush
+    IsEnabled: 1
+    FrontTires:
+      LongitudinalStiffness: 25000
+      LateralStiffness: 20000
+      FrictionCoefficientX: 1.05
+      FrictionCoefficientY: 1
+      LowSpeedThreshold: 0.8
+    RearTires:
+      LongitudinalStiffness: 25000
+      LateralStiffness: 20000
+      FrictionCoefficientX: 1.05
+      FrictionCoefficientY: 1
+      LowSpeedThreshold: 0.8
+    WheelInertia: 1.5
+  _state:
+    Tick: 0
+    EngineRpm: 0
+    CurrentGear: 0
+    ClutchEngagement: 0
+    ShiftTimer: 0
+    Wheels:
+      FL:
+        AngularVelocity: 0
+        RotationAngle: 0
+        SteerAngle: 0
+        HasContact: 0
+        ContactPoint: {x: 0, y: 0, z: 0}
+        ContactNormal: {x: 0, y: 0, z: 0}
+        SuspensionCompression: 0
+        SuspensionVelocity: 0
+        NormalLoad: 0
+        SlipRatio: 0
+        SlipAngle: 0
+        TireForce: {x: 0, y: 0, z: 0}
+        SkidIntensity: 0
+      FR:
+        AngularVelocity: 0
+        RotationAngle: 0
+        SteerAngle: 0
+        HasContact: 0
+        ContactPoint: {x: 0, y: 0, z: 0}
+        ContactNormal: {x: 0, y: 0, z: 0}
+        SuspensionCompression: 0
+        SuspensionVelocity: 0
+        NormalLoad: 0
+        SlipRatio: 0
+        SlipAngle: 0
+        TireForce: {x: 0, y: 0, z: 0}
+        SkidIntensity: 0
+      RL:
+        AngularVelocity: 0
+        RotationAngle: 0
+        SteerAngle: 0
+        HasContact: 0
+        ContactPoint: {x: 0, y: 0, z: 0}
+        ContactNormal: {x: 0, y: 0, z: 0}
+        SuspensionCompression: 0
+        SuspensionVelocity: 0
+        NormalLoad: 0
+        SlipRatio: 0
+        SlipAngle: 0
+        TireForce: {x: 0, y: 0, z: 0}
+        SkidIntensity: 0
+      RR:
+        AngularVelocity: 0
+        RotationAngle: 0
+        SteerAngle: 0
+        HasContact: 0
+        ContactPoint: {x: 0, y: 0, z: 0}
+        ContactNormal: {x: 0, y: 0, z: 0}
+        SuspensionCompression: 0
+        SuspensionVelocity: 0
+        NormalLoad: 0
+        SlipRatio: 0
+        SlipAngle: 0
+        TireForce: {x: 0, y: 0, z: 0}
+        SkidIntensity: 0
+  _input:
+    Throttle: 0
+    Steer: 0
+    Brake: 0
+    Handbrake: 0
+  _visualView: {fileID: 834320178}
+--- !u!114 &834320178
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 834320173}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9de91bcd817ff744b6b22d88a973903, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: VALYR.Runtime::VALYR.Runtime.Visual.VehicleVisualView
+  FrontLeftWheel: {fileID: 1684548877}
+  FrontRightWheel: {fileID: 152238423}
+  RearLeftWheel: {fileID: 1434095784}
+  RearRightWheel: {fileID: 824003191}
+  FL_SuspensionAnchor: {fileID: 1457926696}
+  FR_SuspensionAnchor: {fileID: 98568828}
+  RL_SuspensionAnchor: {fileID: 541414195}
+  RR_SuspensionAnchor: {fileID: 1048827390}
+  SuspensionRestLength: 0.345
+  SuspensionPositionSmoothRate: 25
+--- !u!114 &834320179
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 834320173}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ed5447469774be146ad733d4a25137b2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: VALYR.Runtime::VALYR.Runtime.Input.VehicleInputReader
+  EnableKeyboard: 1
+  EnableGamepad: 1
+  SteerAttackSpeed: 4
+  SteerReturnSpeed: 6
+  ThrottleAttackSpeed: 8
+  BrakeAttackSpeed: 10
 --- !u!43 &917264033
 Mesh:
   m_ObjectHideFlags: 0
@@ -24278,7 +24588,7 @@ BoxCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1986672955}
-  m_Material: {fileID: 13400000, guid: 78aba3c7a78d6f345887e8913945a9e7, type: 2}
+  m_Material: {fileID: 791373732}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -24299,7 +24609,7 @@ BoxCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1986672955}
-  m_Material: {fileID: 13400000, guid: 78aba3c7a78d6f345887e8913945a9e7, type: 2}
+  m_Material: {fileID: 635819261}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0

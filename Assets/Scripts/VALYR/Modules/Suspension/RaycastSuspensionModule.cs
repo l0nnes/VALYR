@@ -36,7 +36,7 @@ namespace VALYR.Modules.Suspension
 
         public static SuspensionAxleSettings DefaultFront => new()
         {
-            RestLength = 0.40f,
+            RestLength = 0.35f,
             MaxTravel = 0.25f,
             SpringStiffness = 38000f,
             DamperCompressionRate = 3200f,
@@ -47,7 +47,7 @@ namespace VALYR.Modules.Suspension
 
         public static SuspensionAxleSettings DefaultRear => new()
         {
-            RestLength = 0.40f,
+            RestLength = 0.35f,
             MaxTravel = 0.25f,
             SpringStiffness = 34000f,
             DamperCompressionRate = 2900f,
