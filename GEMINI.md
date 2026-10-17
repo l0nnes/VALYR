@@ -8,22 +8,17 @@
   - `manage_scene`: Managing active scenes, saving, and hierarchy operations.
   - `find_gameobjects`: Searching scene objects by name, tag, layer, or component.
   - `read_console`: Reading compiler errors, warnings, and runtime logs directly from the Unity Editor console.
-  - `refresh_unity`: Triggering AssetDatabase refresh and requesting script compilation.
+  - `refresh_unity`: Triggering AssetDatabase refresh, requesting script compilation, and waiting for domain reload.
   - `execute_code`: Running arbitrary C# code inside the Unity Editor when necessary.
 
 ## 2. Script Creation and Modification Workflow
-When creating or editing C# scripts for Unity:
-1. **Code Creation / Editing**: Implement the requested changes or new scripts maintaining clean architecture and project conventions.
-2. **Roslyn Script Validation via Unity MCP**: Immediately after writing or modifying scripts, perform validation through Unity MCP:
-   - Call `validate_script`:
-     ```json
-     {
-       "uri": "Assets/Path/To/Script.cs",
-       "level": "standard",
-       "include_diagnostics": true
-     }
-     ```
-   - Request compilation and domain reload via `refresh_unity`:
+When creating or editing C# scripts for Unity, follow this strict sequence:
+
+1. **Complete All Code Changes First**:
+   - Write or modify all required C# scripts completely before starting compilation or validation steps.
+
+2. **Trigger Recompilation & Wait for Readiness**:
+   - Once all code is written, initiate compilation and wait for Unity to complete domain reload by calling `refresh_unity` via `call_mcp_tool`:
      ```json
      {
        "compile": "request",
@@ -32,10 +27,16 @@ When creating or editing C# scripts for Unity:
        "wait_for_ready": true
      }
      ```
-   - Verify compiler diagnostics from Roslyn/Unity by calling `read_console`:
+   - Must wait until Unity finishes compiling and reports readiness (`wait_for_ready: true`).
+
+3. **Check for Compilation Errors**:
+   - Only after Unity finishes recompilation, check for compiler errors in the console by calling `read_console`:
      ```json
      {
        "types": ["error"]
      }
      ```
-3. **Zero Errors Guarantee**: If any diagnostics or compilation errors are found, fix them immediately and re-validate before reporting completion.
+   - Optionally validate specific scripts using `validate_script` (`level: "standard"`, `include_diagnostics: true`) if detailed Roslyn diagnostics are required.
+
+4. **Zero Errors Guarantee**:
+   - If any compilation errors or issues are detected, fix them in the code and repeat steps 2 and 3 (compile -> wait -> check) until 0 errors remain before reporting completion to the user.
