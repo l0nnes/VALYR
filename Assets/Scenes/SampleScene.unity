@@ -10350,6 +10350,7 @@ GameObject:
   - component: {fileID: 834320179}
   - component: {fileID: 834320178}
   - component: {fileID: 834320177}
+  - component: {fileID: 834320180}
   m_Layer: 3
   m_Name: Erebus
   m_TagString: Untagged
@@ -10437,16 +10438,16 @@ MonoBehaviour:
       RestLength: 0.35
       MaxTravel: 0.25
       SpringStiffness: 38000
-      DamperCompressionRate: 3200
-      DamperReboundRate: 4800
+      DamperCompressionRate: 4200
+      DamperReboundRate: 5600
       BumpStopThresholdRatio: 0.8
       BumpStopStiffness: 160000
     RearAxle:
       RestLength: 0.35
       MaxTravel: 0.25
       SpringStiffness: 34000
-      DamperCompressionRate: 2900
-      DamperReboundRate: 4400
+      DamperCompressionRate: 3800
+      DamperReboundRate: 5200
       BumpStopThresholdRatio: 0.8
       BumpStopStiffness: 160000
     SurfaceLayers:
@@ -10684,6 +10685,26 @@ MonoBehaviour:
   SteerReturnSpeed: 6
   ThrottleAttackSpeed: 8
   BrakeAttackSpeed: 10
+--- !u!114 &834320180
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 834320173}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3e2338fd5f165b04ba535c8cffdadbf6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: VALYR.Runtime::VALYR.Runtime.UI.VehicleTelemetryHUD
+  ShowHUD: 1
+  ToggleKey: 94
+  WindowRect:
+    serializedVersion: 2
+    x: 20
+    y: 20
+    width: 720
+    height: 480
 --- !u!43 &917264033
 Mesh:
   m_ObjectHideFlags: 0
@@ -20495,7 +20516,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6f0c5ec9108a40c08d3ff96624e47067, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  rotationSpeed: 30
 --- !u!54 &1724307415
 Rigidbody:
   m_ObjectHideFlags: 0

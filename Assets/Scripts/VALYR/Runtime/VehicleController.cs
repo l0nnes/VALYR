@@ -87,6 +87,10 @@ namespace VALYR.Runtime
                 Suspension.SurfaceLayers = GroundLayers;
                 Suspension.FrontAxle.RestLength = 0.35f;
                 Suspension.RearAxle.RestLength = 0.35f;
+                Suspension.FrontAxle.DamperCompressionRate = 4200f;
+                Suspension.FrontAxle.DamperReboundRate = 5600f;
+                Suspension.RearAxle.DamperCompressionRate = 3800f;
+                Suspension.RearAxle.DamperReboundRate = 5200f;
             }
             if (_visualView == null)
                 _visualView = GetComponent<VehicleVisualView>();
@@ -94,6 +98,7 @@ namespace VALYR.Runtime
 
         private void Awake()
         {
+            ApplyDefaultConfig();
             _rigidbody = GetComponent<Rigidbody>();
             _inputReader = GetComponent<VehicleInputReader>();
 

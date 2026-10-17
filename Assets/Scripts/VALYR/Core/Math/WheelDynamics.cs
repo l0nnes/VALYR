@@ -46,15 +46,18 @@ namespace VALYR.Core.Math
             float maxBrakeToStop = (Mathf.Abs(currentOmega) * wheelInertia) / dt;
             float effectiveBrake = Mathf.Min(brakeTorque, maxBrakeToStop) * Mathf.Sign(currentOmega);
 
+            // Момент сопротивления подшипников и аэродинамического трения свободного колеса
+            float bearingDrag = 1.5f * currentOmega;
+
             // Результирующий крутящий момент
-            float netTorque = driveTorque - tireReactionTorque - effectiveBrake;
+            float netTorque = driveTorque - tireReactionTorque - effectiveBrake - bearingDrag;
 
             // Простое и устойчивое интегрирование
             float deltaOmega = (netTorque / wheelInertia) * dt;
             nextOmega = currentOmega + deltaOmega;
 
-            // Накопление угла для визуального вращения меша
-            nextRotationAngle = currentRotationAngle + nextOmega * dt;
+            // Накопление угла для визуального вращения меша (циклический wrap [0..2*PI] исключает деградацию float)
+            nextRotationAngle = Mathf.Repeat(currentRotationAngle + nextOmega * dt, Mathf.PI * 2f);
         }
     }
 }

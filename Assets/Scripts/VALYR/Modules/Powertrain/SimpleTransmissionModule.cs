@@ -150,10 +150,15 @@ namespace VALYR.Modules.Powertrain
             float torquePerFrontWheel = (netDriveTorque * frontRatio) * 0.5f;
             float torquePerRearWheel = (netDriveTorque * rearRatio) * 0.5f;
 
-            actuation.GetRef(0).DriveTorque += torquePerFrontWheel; // FL
-            actuation.GetRef(1).DriveTorque += torquePerFrontWheel; // FR
-            actuation.GetRef(2).DriveTorque += torquePerRearWheel;  // RL
-            actuation.GetRef(3).DriveTorque += torquePerRearWheel;  // RR
+            // Защита от гипер-раскрутки вывешенных колес в воздухе (не быстрее максимальных оборотов передачи)
+            float maxWheelOmega = Mathf.Abs(totalRatio) > 0.01f
+                ? (7200f / RadPerSecToRpm) / Mathf.Abs(totalRatio)
+                : 200f;
+
+            actuation.GetRef(0).DriveTorque += (Mathf.Abs(state.Wheels[0].AngularVelocity) < maxWheelOmega) ? torquePerFrontWheel : 0f; // FL
+            actuation.GetRef(1).DriveTorque += (Mathf.Abs(state.Wheels[1].AngularVelocity) < maxWheelOmega) ? torquePerFrontWheel : 0f; // FR
+            actuation.GetRef(2).DriveTorque += (Mathf.Abs(state.Wheels[2].AngularVelocity) < maxWheelOmega) ? torquePerRearWheel : 0f;  // RL
+            actuation.GetRef(3).DriveTorque += (Mathf.Abs(state.Wheels[3].AngularVelocity) < maxWheelOmega) ? torquePerRearWheel : 0f;  // RR
 
             // 5. Распределение тормозных усилий
             float brakeDemand = Mathf.Clamp01(input.Brake);

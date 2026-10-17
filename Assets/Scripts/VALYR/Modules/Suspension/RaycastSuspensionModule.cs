@@ -39,10 +39,10 @@ namespace VALYR.Modules.Suspension
             RestLength = 0.35f,
             MaxTravel = 0.25f,
             SpringStiffness = 38000f,
-            DamperCompressionRate = 3200f,
-            DamperReboundRate = 4800f,
+            DamperCompressionRate = 4200f,
+            DamperReboundRate = 5600f,
             BumpStopThresholdRatio = 0.80f,
-            BumpStopStiffness = 160000f
+            BumpStopStiffness = 180000f
         };
 
         public static SuspensionAxleSettings DefaultRear => new()
@@ -50,10 +50,10 @@ namespace VALYR.Modules.Suspension
             RestLength = 0.35f,
             MaxTravel = 0.25f,
             SpringStiffness = 34000f,
-            DamperCompressionRate = 2900f,
-            DamperReboundRate = 4400f,
+            DamperCompressionRate = 3800f,
+            DamperReboundRate = 5200f,
             BumpStopThresholdRatio = 0.80f,
-            BumpStopStiffness = 160000f
+            BumpStopStiffness = 180000f
         };
     }
 
@@ -115,9 +115,9 @@ namespace VALYR.Modules.Suspension
                     float currentLength = hit.Distance - radius;
                     float compression = Mathf.Clamp(settings.RestLength - currentLength, 0f, settings.MaxTravel);
 
-                    // Скорость сжатия подвески (+ сжатие, - отбой)
-                    Vector3 contactPointVelocity = body.GetPointVelocity(hit.Point);
-                    float suspVelocity = -Vector3.Dot(contactPointVelocity, suspDown);
+                    // Скорость сжатия подвески (+ сжатие при движении кузова вниз к земле, - отбой)
+                    Vector3 mountVelocity = body.GetPointVelocity(mountPoint);
+                    float suspVelocity = Vector3.Dot(mountVelocity, suspDown);
 
                     // 1. Сила упругости пружины Гука
                     float fSpring = settings.SpringStiffness * compression;
@@ -140,9 +140,9 @@ namespace VALYR.Modules.Suspension
                     // Результирующая сила подвески (подвеска не может притягивать машину к земле)
                     float totalForce = Mathf.Max(0f, fSpring + fDamper + fBump);
 
-                    // Приложение силы вдоль оси подвески вверх к кузову
+                    // Приложение силы вдоль оси подвески вверх к кузову в точке крепления подвески
                     Vector3 forceVector = -suspDown * totalForce;
-                    body.AddForceAtPosition(forceVector, hit.Point);
+                    body.AddForceAtPosition(forceVector, mountPoint);
 
                     // Сохранение состояния колеса
                     wheel.HasContact = true;
