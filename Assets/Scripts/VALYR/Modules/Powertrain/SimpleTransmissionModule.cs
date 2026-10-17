@@ -66,6 +66,7 @@ namespace VALYR.Modules.Powertrain
         public float MaxHandbrakeTorque = 3500f;
 
         private const float RadPerSecToRpm = 60f / (2f * Mathf.PI);
+        private float _reverseHoldTimer;
 
         public SimpleTransmissionModule()
         {
@@ -116,14 +117,30 @@ namespace VALYR.Modules.Powertrain
             // 2. Логика автоматического переключения передач
             if (AutomaticShift && state.ShiftTimer <= 0f)
             {
-                UpdateAutoShift(in input, ref state);
+                UpdateAutoShift(in input, ref state, in chassis, dt);
             }
 
             // 3. Вычисление эффективного передаточного числа
             float currentRatio = GetGearRatio(state.CurrentGear);
             float totalRatio = currentRatio * FinalDriveRatio;
 
-            // 4. Расчет суммарного крутящего момента на колесах
+            // 4. Определение тяги и торможения в зависимости от режима (D или R)
+            float driveDemand;
+            float brakeDemand;
+
+            if (state.CurrentGear == -1)
+            {
+                // Задний ход: тормоз (S) управляет реверсивной тягой, газ (W) тормозит
+                driveDemand = Mathf.Clamp01(input.Brake);
+                brakeDemand = Mathf.Clamp01(input.Throttle);
+            }
+            else
+            {
+                // Передний ход: газ (W) управляет тягой вперед, тормоз (S) тормозит
+                driveDemand = Mathf.Clamp01(input.Throttle);
+                brakeDemand = Mathf.Clamp01(input.Brake);
+            }
+
             float netDriveTorque = engineOutput.OutputTorque * totalRatio * TransmissionEfficiency * state.ClutchEngagement;
 
             // Распределение крутящего момента по осям (FL, FR, RL, RR)
@@ -161,7 +178,6 @@ namespace VALYR.Modules.Powertrain
             actuation.GetRef(3).DriveTorque += (Mathf.Abs(state.Wheels[3].AngularVelocity) < maxWheelOmega) ? torquePerRearWheel : 0f;  // RR
 
             // 5. Распределение тормозных усилий
-            float brakeDemand = Mathf.Clamp01(input.Brake);
             float totalBrakeTorque = brakeDemand * MaxBrakeTorque;
 
             float frontBrakeTorque = (totalBrakeTorque * FrontBrakeBias) * 0.5f;
@@ -203,22 +219,32 @@ namespace VALYR.Modules.Powertrain
             return ForwardGearRatios[index];
         }
 
-        private void UpdateAutoShift(in VehicleInput input, ref VehicleState state)
+        private void UpdateAutoShift(in VehicleInput input, ref VehicleState state, in VehicleChassisConfig chassis, float dt)
         {
             float rpm = state.EngineRpm;
             int gear = state.CurrentGear;
 
-            // Переход на заднюю передачу при торможении с околонулевой скоростью
-            float avgSpeed = (Mathf.Abs(state.Wheels[0].AngularVelocity) + Mathf.Abs(state.Wheels[1].AngularVelocity)) * 0.5f;
-            if (gear >= 1 && avgSpeed < 1.0f && input.Brake > 0.5f && input.Throttle < 0.1f)
+            float avgWheelSpeed = GetDrivenWheelsAverageLinearSpeed(in state, in chassis);
+
+            // Переход на заднюю передачу при осознанном удержании тормоза на полной остановке
+            if (gear >= 1 && avgWheelSpeed < 0.4f && input.Brake > 0.6f && input.Throttle < 0.05f)
             {
-                state.CurrentGear = -1;
-                state.ShiftTimer = ShiftDuration;
-                return;
+                _reverseHoldTimer += dt;
+                if (_reverseHoldTimer > 0.35f)
+                {
+                    state.CurrentGear = -1;
+                    state.ShiftTimer = ShiftDuration;
+                    _reverseHoldTimer = 0f;
+                    return;
+                }
+            }
+            else
+            {
+                _reverseHoldTimer = 0f;
             }
 
-            // Переход из задней передачи в 1-ю вперед при нажатии газа
-            if (gear == -1 && avgSpeed < 1.0f && input.Throttle > 0.3f && input.Brake < 0.1f)
+            // Переход из задней передачи в 1-ю вперед при нажатии газа на замедленной машине
+            if (gear == -1 && input.Throttle > 0.2f && avgWheelSpeed < 0.5f)
             {
                 state.CurrentGear = 1;
                 state.ShiftTimer = ShiftDuration;
@@ -226,9 +252,11 @@ namespace VALYR.Modules.Powertrain
             }
 
             // Переключение вперед (1 -> 2 -> ... -> N)
+            // Защита от переключения на 6 передачу при пробуксовке на месте: требует реальной линейной скорости
             if (gear >= 1 && ForwardGearRatios != null && gear < ForwardGearRatios.Length)
             {
-                if (rpm > ShiftUpRpm)
+                float minSpeedForUpshift = gear * 4.0f; // 1->2: 4 м/с (~14 км/ч), 2->3: 8 м/с (~29 км/ч)...
+                if (rpm > ShiftUpRpm && avgWheelSpeed > minSpeedForUpshift)
                 {
                     state.CurrentGear = gear + 1;
                     state.ShiftTimer = ShiftDuration;
@@ -239,12 +267,27 @@ namespace VALYR.Modules.Powertrain
             // Переключение вниз (N -> ... -> 2 -> 1)
             if (gear > 1)
             {
-                if (rpm < ShiftDownRpm)
+                float minSpeedForCurrentGear = (gear - 1) * 3.0f;
+                if (rpm < ShiftDownRpm || avgWheelSpeed < minSpeedForCurrentGear)
                 {
                     state.CurrentGear = gear - 1;
                     state.ShiftTimer = ShiftDuration;
                 }
             }
+        }
+
+        private float GetDrivenWheelsAverageLinearSpeed(in VehicleState state, in VehicleChassisConfig chassis)
+        {
+            float speedSum = 0f;
+            int count = 0;
+
+            for (int i = 0; i < 4; i++)
+            {
+                speedSum += Mathf.Abs(state.Wheels[i].AngularVelocity) * chassis.WheelRadii[i];
+                count++;
+            }
+
+            return count > 0 ? speedSum / count : 0f;
         }
 
         private float GetDrivenWheelsAverageAngularVelocity(in VehicleState state)

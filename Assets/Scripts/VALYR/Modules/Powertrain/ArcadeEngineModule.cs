@@ -71,7 +71,7 @@ namespace VALYR.Modules.Powertrain
             if (currentRpm < IdleRpm)
                 currentRpm = IdleRpm;
 
-            float throttle = Mathf.Clamp01(input.Throttle);
+            float throttle = state.CurrentGear == -1 ? Mathf.Clamp01(input.Brake) : Mathf.Clamp01(input.Throttle);
 
             // 1. Проверка отсечки максимальных оборотов (Rev Limiter fuel cut)
             bool isRevLimiting = currentRpm >= RevLimiterRpm;

@@ -90,43 +90,58 @@ namespace VALYR.Modules.Tires
                 float vy = Vector3.Dot(contactVelocity, wheelRight);
                 float contactLinearSpeed = contactVelocity.magnitude;
 
-                // Расчет коэффициентов скольжения
-                BrushTireModel.CalculateSlip(
-                    wheel.AngularVelocity,
-                    radius,
-                    vx,
-                    vy,
-                    out float slipRatio,
-                    out float slipAngle);
+                // 1. Расчет бокового угла увода (Slip Angle) и боковой силы
+                float contactSpeed = Mathf.Sqrt(vx * vx + vy * vy);
+                float vDenom = Mathf.Max(contactSpeed, 0.5f);
+                float slipAngle = -vy / vDenom;
 
-                // Расчет сил сцепления шины
-                BrushTireModel.CalculateTireForces(
-                    in tireParams,
-                    wheel.NormalLoad,
-                    slipRatio,
-                    slipAngle,
-                    1.0f,
-                    contactLinearSpeed,
-                    out float fx,
-                    out float fy,
-                    out float skidIntensity);
+                float effectiveMuX = Mathf.Max(tireParams.FrictionCoefficientX, 0.1f);
+                float effectiveMuY = Mathf.Max(tireParams.FrictionCoefficientY, 0.1f);
+                float maxFx = effectiveMuX * wheel.NormalLoad;
+                float maxFy = effectiveMuY * wheel.NormalLoad;
 
-                // Приложение результирующей силы к телу автомобиля
-                Vector3 worldTireForce = wheelForward * fx + wheelRight * fy;
-                body.AddForceAtPosition(worldTireForce, wheel.ContactPoint);
+                float sigmaY = (tireParams.LateralStiffness * slipAngle) / maxFy;
+                float rawFy = maxFy * Mathf.Clamp(sigmaY, -1f, 1f);
 
-                // Интеграция уравнения вращения колеса с учетом реакции шины (fx)
-                WheelDynamics.Integrate(
+                // 2. Безусловно устойчивый полунеявный расчет продольной динамики и силы Fx
+                WheelDynamics.IntegrateContact(
                     wheel.AngularVelocity,
                     wheel.RotationAngle,
                     driveTorque,
                     brakeTorque,
-                    fx,
+                    vx,
                     radius,
                     WheelInertia,
+                    tireParams.LongitudinalStiffness,
+                    maxFx,
                     dt,
                     out float nextOmega,
-                    out float nextAngle);
+                    out float nextAngle,
+                    out float slipRatio,
+                    out float fx);
+
+                // 3. Эллипс сцепления шины
+                float normX = fx / Mathf.Max(maxFx, 0.001f);
+                float normY = rawFy / Mathf.Max(maxFy, 0.001f);
+                float combinedMagnitude = Mathf.Sqrt(normX * normX + normY * normY);
+                float fy = rawFy;
+                float skidIntensity = 0f;
+
+                if (combinedMagnitude > 1.0f)
+                {
+                    float scale = 1.0f / combinedMagnitude;
+                    fx *= scale;
+                    fy *= scale;
+                    skidIntensity = 1.0f;
+                }
+                else
+                {
+                    skidIntensity = combinedMagnitude;
+                }
+
+                // Приложение результирующей силы к телу автомобиля
+                Vector3 worldTireForce = wheelForward * fx + wheelRight * fy;
+                body.AddForceAtPosition(worldTireForce, wheel.ContactPoint);
 
                 // Обновление состояния колеса
                 wheel.AngularVelocity = nextOmega;

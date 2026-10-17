@@ -5,25 +5,15 @@ namespace VALYR.Core.Math
 {
     /// <summary>
     /// Решатель кинематики вращения колеса (Wheel Rotational Dynamics).
-    /// Решает дифференциальное уравнение:
-    ///   I_wheel * d(omega)/dt = T_drive - T_brake * sign(omega) - F_x * R_wheel - T_rollingResistance
-    /// Включает стабильное поглощение тормозного импульса около нуля (без ложного реверса вращения).
+    /// Включает стандартный интегратор для свободного колеса в воздухе и
+    /// безусловно устойчивый полунеявный интегратор (Unconditionally Stable Semi-Implicit Integrator)
+    /// для колеса в контакте с землей, исключающий колебания и разворот колес на малых скоростях.
     /// </summary>
     public static class WheelDynamics
     {
         /// <summary>
-        /// Интегрирует угловую скорость и угол вращения колеса за один физический шаг dt.
+        /// Интегрирует угловую скорость свободного колеса в воздухе.
         /// </summary>
-        /// <param name="currentOmega">Текущая угловая скорость колеса (рад/с)</param>
-        /// <param name="currentRotationAngle">Текущий накопленный угол поворота (рад)</param>
-        /// <param name="driveTorque">Крутящий момент привода (Нм)</param>
-        /// <param name="brakeTorque">Эффективный тормозной момент (Нм, положительное число)</param>
-        /// <param name="tireLongitudinalForce">Продольная сила сцепления шины с дорогой (Ньютоны, + тяга, - торможение)</param>
-        /// <param name="wheelRadius">Радиус колеса (метры)</param>
-        /// <param name="wheelInertia">Момент инерции колеса (кг*м^2, обычно 1.2 .. 2.5)</param>
-        /// <param name="dt">Шаг времени (секунды)</param>
-        /// <param name="nextOmega">Выходная новая угловая скорость (рад/с)</param>
-        /// <param name="nextRotationAngle">Выходной новый угол вращения колеса (рад)</param>
         public static void Integrate(
             float currentOmega,
             float currentRotationAngle,
@@ -39,24 +29,77 @@ namespace VALYR.Core.Math
             if (wheelInertia < 0.01f)
                 wheelInertia = 0.01f;
 
-            // Момент сопротивления от реакции сцепления шины с поверхностью
             float tireReactionTorque = tireLongitudinalForce * wheelRadius;
-
-            // Тормозной момент: не должен заставлять колесо крутиться назад
             float maxBrakeToStop = (Mathf.Abs(currentOmega) * wheelInertia) / dt;
             float effectiveBrake = Mathf.Min(brakeTorque, maxBrakeToStop) * Mathf.Sign(currentOmega);
+            float bearingDrag = 2.0f * currentOmega;
 
-            // Момент сопротивления подшипников и аэродинамического трения свободного колеса
-            float bearingDrag = 1.5f * currentOmega;
-
-            // Результирующий крутящий момент
             float netTorque = driveTorque - tireReactionTorque - effectiveBrake - bearingDrag;
-
-            // Простое и устойчивое интегрирование
             float deltaOmega = (netTorque / wheelInertia) * dt;
             nextOmega = currentOmega + deltaOmega;
+            nextRotationAngle = Mathf.Repeat(currentRotationAngle + nextOmega * dt, Mathf.PI * 2f);
+        }
 
-            // Накопление угла для визуального вращения меша (циклический wrap [0..2*PI] исключает деградацию float)
+        /// <summary>
+        /// Безусловно устойчивый полунеявный интегратор вращения колеса в контакте с дорогой.
+        /// Решает проблему численной жесткости дифференциального уравнения при околонулевых скоростях.
+        /// </summary>
+        public static void IntegrateContact(
+            float currentOmega,
+            float currentRotationAngle,
+            float driveTorque,
+            float brakeTorque,
+            float forwardSpeed,
+            float wheelRadius,
+            float wheelInertia,
+            float longitudinalStiffness,
+            float maxFx,
+            float dt,
+            out float nextOmega,
+            out float nextRotationAngle,
+            out float longitudinalSlip,
+            out float appliedFx)
+        {
+            if (wheelInertia < 0.01f)
+                wheelInertia = 0.01f;
+
+            float r = wheelRadius;
+            float vDenom = Mathf.Max(Mathf.Abs(forwardSpeed), 0.5f);
+
+            // Тормозной момент: не должен вращать колесо в обратную сторону
+            float maxBrake = (Mathf.Abs(currentOmega) * wheelInertia) / dt;
+            float effectiveBrake = Mathf.Min(brakeTorque, maxBrake) * Mathf.Sign(currentOmega);
+            float bearingDrag = 1.0f * currentOmega;
+
+            float netExternalTorque = driveTorque - effectiveBrake - bearingDrag;
+
+            // Коэффициент неявной жесткости: K = (Cx * R^2 * dt) / vDenom
+            float kImplicit = (longitudinalStiffness * r * r * dt) / vDenom;
+
+            // Целевая угловая скорость при нахождении в зоне упругого сцепления
+            float targetOmega = (wheelInertia * currentOmega + netExternalTorque * dt + (longitudinalStiffness * r * dt / vDenom) * forwardSpeed) / (wheelInertia + kImplicit);
+
+            // Продольный slip ratio на следующем шаге
+            longitudinalSlip = (targetOmega * r - forwardSpeed) / vDenom;
+
+            // Сила сцепления
+            float rawFx = longitudinalStiffness * longitudinalSlip;
+
+            if (Mathf.Abs(rawFx) > maxFx && maxFx > 0.001f)
+            {
+                // Проскальзывание / пробуксовка (выход за пределы эллипса сцепления)
+                appliedFx = Mathf.Sign(rawFx) * maxFx;
+                float netTorque = netExternalTorque - appliedFx * r;
+                nextOmega = currentOmega + (netTorque / wheelInertia) * dt;
+                longitudinalSlip = (nextOmega * r - forwardSpeed) / vDenom;
+            }
+            else
+            {
+                // Упругое сцепление (без срыва)
+                appliedFx = rawFx;
+                nextOmega = targetOmega;
+            }
+
             nextRotationAngle = Mathf.Repeat(currentRotationAngle + nextOmega * dt, Mathf.PI * 2f);
         }
     }
