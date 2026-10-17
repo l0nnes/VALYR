@@ -4,29 +4,29 @@ using UnityEngine;
 namespace VALYR.Core
 {
     /// <summary>
-    /// Полный снимок состояния физики машины для одного тика.
-    /// Blittable unmanaged struct: нулевые аллокации в куче при копировании и Rollback-реплеях.
-    /// Совместима с интерфейсом PurrDiction IPredictedData.
+    /// Complete snapshot of the vehicle physics state for a single simulation tick.
+    /// Blittable unmanaged struct with zero heap allocations, designed for rollback replays
+    /// and network prediction (compatible with PurrDiction IPredictedData).
     /// </summary>
     [Serializable]
     public struct VehicleState
     {
         public uint Tick;
 
-        // --- Состояние силовой установки ---
-        [Tooltip("Обороты коленчатого вала двигателя (RPM)")]
+        // --- Powertrain State ---
+        [Tooltip("Engine crankshaft rotational speed in RPM.")]
         public float EngineRpm;
 
-        [Tooltip("Текущая включенная передача (-1: R, 0: N, 1..N: передачи вперед)")]
+        [Tooltip("Currently engaged transmission gear (-1: Reverse, 0: Neutral, 1..N: Forward gears).")]
         public int CurrentGear;
 
-        [Tooltip("Степень блокировки сцепления (0 = разомкнуто, 1 = жестко замкнуто)")]
+        [Tooltip("Clutch lockup factor (0 = fully disengaged / slipping, 1 = fully locked).")]
         public float ClutchEngagement;
 
-        [Tooltip("Таймер задержки переключения передачи (секунды)")]
+        [Tooltip("Active gear shift timer in seconds.")]
         public float ShiftTimer;
 
-        // --- Физическое состояние всех 4 колес ---
+        // --- 4 Wheels Physical State ---
         public WheelData4<WheelState> Wheels;
 
         public void Dispose() { }

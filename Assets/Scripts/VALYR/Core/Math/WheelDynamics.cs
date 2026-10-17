@@ -4,15 +4,15 @@ using UnityEngine;
 namespace VALYR.Core.Math
 {
     /// <summary>
-    /// Решатель кинематики вращения колеса (Wheel Rotational Dynamics).
-    /// Включает стандартный интегратор для свободного колеса в воздухе и
-    /// безусловно устойчивый полунеявный интегратор (Unconditionally Stable Semi-Implicit Integrator)
-    /// для колеса в контакте с землей, исключающий колебания и разворот колес на малых скоростях.
+    /// Wheel rotational dynamics solver.
+    /// Provides explicit integration for airborne wheels and an unconditionally stable
+    /// semi-implicit solver for wheels in road contact, eliminating numerical chatter
+    /// and wheel oscillations at low speeds.
     /// </summary>
     public static class WheelDynamics
     {
         /// <summary>
-        /// Интегрирует угловую скорость свободного колеса в воздухе.
+        /// Integrates angular velocity for a free (airborne) wheel.
         /// </summary>
         public static void Integrate(
             float currentOmega,
@@ -41,8 +41,8 @@ namespace VALYR.Core.Math
         }
 
         /// <summary>
-        /// Безусловно устойчивый полунеявный интегратор вращения колеса в контакте с дорогой.
-        /// Решает проблему численной жесткости дифференциального уравнения при околонулевых скоростях.
+        /// Unconditionally stable semi-implicit integrator for a wheel in contact with road surface.
+        /// Solves stiff differential equations at near-zero speeds without numerical blowup.
         /// </summary>
         public static void IntegrateContact(
             float currentOmega,
@@ -66,41 +66,41 @@ namespace VALYR.Core.Math
             float r = wheelRadius;
             float vDenom = Mathf.Max(Mathf.Abs(forwardSpeed), 0.5f);
 
-            // 1. Свободное вращение под действием привода, сопротивления подшипников и сцепления шины (без тормозов)
+            // 1. Unconstrained rotation under drive torque, bearing drag, and tire adhesion (ignoring brakes)
             float bearingDrag = 1.0f * currentOmega;
             float netDriveTorque = driveTorque - bearingDrag;
 
-            // Коэффициент неявной жесткости: K = (Cx * R^2 * dt) / vDenom
+            // Semi-implicit stiffness coefficient: K = (Cx * R^2 * dt) / vDenom
             float kImplicit = (longitudinalStiffness * r * r * dt) / vDenom;
             float effectiveInertia = wheelInertia + kImplicit;
 
-            // Свободная угловая скорость колеса до приложения дискового/стояночного тормоза
+            // Free angular velocity of the wheel before applying disc/parking brake torque
             float omegaFree = (wheelInertia * currentOmega + netDriveTorque * dt + (longitudinalStiffness * r * dt / vDenom) * forwardSpeed) / effectiveInertia;
 
-            // 2. Точный расчет тормозного момента: если тормоз способен остановить колесо, он блокирует его (omega = 0)
+            // 2. Exact brake torque resolution: if brake torque exceeds required stopping torque, lock wheel (omega = 0)
             float torqueToStop = (Mathf.Abs(omegaFree) * effectiveInertia) / dt;
             float targetOmega;
 
             if (brakeTorque >= torqueToStop && brakeTorque > 0.001f)
             {
-                // Тормоз полностью удерживает / блокирует колесо
+                // Brake fully holds / locks the wheel
                 targetOmega = 0f;
             }
             else
             {
-                // Тормоз замедляет колесо
+                // Brake decelerates the wheel
                 targetOmega = omegaFree - Mathf.Sign(omegaFree) * (brakeTorque * dt / effectiveInertia);
             }
 
-            // Продольный slip ratio на следующем шаге
+            // Next timestep longitudinal slip ratio
             longitudinalSlip = (targetOmega * r - forwardSpeed) / vDenom;
 
-            // Сила сцепления
+            // Tire traction force
             float rawFx = longitudinalStiffness * longitudinalSlip;
 
             if (Mathf.Abs(rawFx) > maxFx && maxFx > 0.001f)
             {
-                // Проскальзывание / пробуксовка (выход за пределы эллипса сцепления)
+                // Wheel slip exceeds friction limit (burnout or slide)
                 appliedFx = Mathf.Sign(rawFx) * maxFx;
 
                 float netTorque = driveTorque - appliedFx * r - bearingDrag;
@@ -113,7 +113,7 @@ namespace VALYR.Core.Math
             }
             else
             {
-                // Упругое сцепление (без срыва)
+                // Elastic adhesion (no slip rupture)
                 appliedFx = rawFx;
                 nextOmega = targetOmega;
             }

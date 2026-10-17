@@ -7,18 +7,20 @@ using VALYR.Core.Modules;
 namespace VALYR.Modules.Assists
 {
     /// <summary>
-    /// Модуль стабилизаторов поперечной устойчивости (Anti-Roll Bar / Sway Bar).
-    /// Устраняет крен кузова в поворотах путем переноса нормальной нагрузки между
-    /// левым и правым колесами каждой оси, противодействуя крену шасси.
+    /// Anti-Roll Bar (Sway Bar) chassis assist module.
+    /// Resists chassis body roll during cornering by transferring normal load between
+    /// the left and right wheels of each axle.
     /// </summary>
     [Serializable]
     public class AntiRollBarModule : VehicleModule, IChassisAssistModule
     {
-        [Header("Жесткость стабилизаторов")]
-        [Tooltip("Жесткость переднего стабилизатора поперечной устойчивости (Ньютоны / метр)")]
+        [Header("Anti-Roll Bar Stiffness")]
+        [Tooltip("Front anti-roll bar torsional stiffness in Newtons per meter (N/m, typical: 3,000 - 8,000 N/m). Higher values reduce roll and promote understeer.")]
+        [Min(0f)]
         public float FrontStiffness = 4500f;
 
-        [Tooltip("Жесткость заднего стабилизатора поперечной устойчивости (Ньютоны / метр)")]
+        [Tooltip("Rear anti-roll bar torsional stiffness in Newtons per meter (N/m, typical: 1,500 - 5,000 N/m). Higher values reduce roll and promote oversteer.")]
+        [Min(0f)]
         public float RearStiffness = 2200f;
 
         public AntiRollBarModule()
@@ -37,7 +39,7 @@ namespace VALYR.Modules.Assists
 
             Vector3 bodyUp = body.Rotation * Vector3.up;
 
-            // 1. Передний стабилизатор (FL = 0, FR = 1)
+            // 1. Front Axle Anti-Roll Bar (FL = 0, FR = 1)
             ApplyAxleAntiRoll(
                 ref state.Wheels.GetRef(0),
                 ref state.Wheels.GetRef(1),
@@ -45,7 +47,7 @@ namespace VALYR.Modules.Assists
                 body,
                 bodyUp);
 
-            // 2. Задний стабилизатор (RL = 2, RR = 3)
+            // 2. Rear Axle Anti-Roll Bar (RL = 2, RR = 3)
             ApplyAxleAntiRoll(
                 ref state.Wheels.GetRef(2),
                 ref state.Wheels.GetRef(3),
@@ -73,8 +75,7 @@ namespace VALYR.Modules.Assists
 
             float deltaForce = diff * stiffness;
 
-            // Корректировка нормальной нагрузки на колеса:
-            // Более сжатое колесо получает большую нагрузку, разгруженное — меньшую
+            // Load transfer: compressed wheel gains normal force, decompressed wheel loses normal force
             if (leftWheel.HasContact)
             {
                 leftWheel.NormalLoad = Mathf.Max(0f, leftWheel.NormalLoad + deltaForce);

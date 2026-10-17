@@ -8,22 +8,24 @@ using VALYR.Core.Modules;
 namespace VALYR.Modules.Tires
 {
     /// <summary>
-    /// Модуль шин на основе аналитической модели щетки (Brush Tire Model).
-    /// Вычисляет нелинейный эллипс комбинированного продольного и поперечного сцепления,
-    /// предотвращает паразитное сползание на малых скоростях и решает дифференциальное уравнение
-    /// динамики вращения каждого колеса (WheelDynamics).
+    /// Tire dynamics module based on the analytical Brush Tire Model (Fiala / Pacejka hybrid).
+    /// Computes non-linear combined slip ellipse, eliminates low-speed chatter/drift,
+    /// and solves rotational wheel dynamics differential equations (WheelDynamics).
     /// </summary>
     [Serializable]
     public class BrushTireModule : VehicleModule, ITireModule
     {
-        [Header("Параметры передних шин")]
+        [Header("Front Axle Tires")]
+        [Tooltip("Physical grip and stiffness properties of front tires.")]
         public BrushTireParameters FrontTires = BrushTireParameters.Default;
 
-        [Header("Параметры задних шин")]
+        [Header("Rear Axle Tires")]
+        [Tooltip("Physical grip and stiffness properties of rear tires.")]
         public BrushTireParameters RearTires = BrushTireParameters.Default;
 
-        [Header("Инерция колеса")]
-        [Tooltip("Момент инерции колеса и тормозного диска (кг*м^2, обычно 1.0..1.5)")]
+        [Header("Wheel Rotational Inertia")]
+        [Tooltip("Rotational moment of inertia of each wheel assembly and brake disc in kg*m^2 (typical: 0.9 - 1.5 kg*m^2 for civilian cars, 2.0+ for heavy SUVs).")]
+        [Min(0.05f)]
         public float WheelInertia = 1.1f;
 
         public BrushTireModule()
@@ -57,7 +59,7 @@ namespace VALYR.Modules.Tires
 
                 if (!wheel.HasContact || wheel.NormalLoad <= 0.001f)
                 {
-                    // Колесо в воздухе — свободное вращение
+                    // Wheel airborne: free rotational integration
                     WheelDynamics.Integrate(
                         wheel.AngularVelocity,
                         wheel.RotationAngle,
@@ -79,18 +81,18 @@ namespace VALYR.Modules.Tires
                     continue;
                 }
 
-                // Колесо касается поверхности: вычисляем локальный базис пятна контакта с учетом поворота руля
+                // Wheel in road contact: compute local contact patch basis accounting for steer angle
                 Vector3 steeredDir = Quaternion.AngleAxis(Mathf.Rad2Deg * wheel.SteerAngle, bodyUp) * bodyForward;
                 Vector3 wheelRight = Vector3.Cross(wheel.ContactNormal, steeredDir).normalized;
                 Vector3 wheelForward = Vector3.Cross(wheelRight, wheel.ContactNormal).normalized;
 
-                // Линейная скорость точки пятна контакта
+                // Linear velocity of contact patch on ground
                 Vector3 contactVelocity = body.GetPointVelocity(wheel.ContactPoint);
                 float vx = Vector3.Dot(contactVelocity, wheelForward);
                 float vy = Vector3.Dot(contactVelocity, wheelRight);
                 float contactLinearSpeed = contactVelocity.magnitude;
 
-                // 1. Расчет бокового угла увода (Slip Angle) и боковой силы
+                // 1. Lateral slip angle and lateral force calculation
                 float contactSpeed = Mathf.Sqrt(vx * vx + vy * vy);
                 float vDenom = Mathf.Max(contactSpeed, 0.5f);
                 float slipAngle = -vy / vDenom;
@@ -103,8 +105,8 @@ namespace VALYR.Modules.Tires
                 float sigmaY = (tireParams.LateralStiffness * slipAngle) / maxFy;
                 float rawFy = maxFy * Mathf.Clamp(sigmaY, -1f, 1f);
 
-                // Защита от низкоскоростного численного дребезга (chatter):
-                // При скоростях < 1.0 м/с боковая сила не должна превышать силу, необходимую для остановки бокового смещения
+                // Numerical chatter prevention at low speeds (< 1.0 m/s):
+                // Lateral force must not exceed the force required to arrest lateral motion in one timestep.
                 if (contactSpeed < 1.0f)
                 {
                     float quarterMass = chassis.ChassisMass * 0.25f;
@@ -115,7 +117,7 @@ namespace VALYR.Modules.Tires
                     }
                 }
 
-                // 2. Безусловно устойчивый полунеявный расчет продольной динамики и силы Fx
+                // 2. Unconditionally stable semi-implicit longitudinal rotational solver
                 WheelDynamics.IntegrateContact(
                     wheel.AngularVelocity,
                     wheel.RotationAngle,
@@ -132,7 +134,7 @@ namespace VALYR.Modules.Tires
                     out float slipRatio,
                     out float fx);
 
-                // 3. Эллипс сцепления шины
+                // 3. Friction ellipse coupling
                 float normX = fx / Mathf.Max(maxFx, 0.001f);
                 float normY = rawFy / Mathf.Max(maxFy, 0.001f);
                 float combinedMagnitude = Mathf.Sqrt(normX * normX + normY * normY);
@@ -151,11 +153,11 @@ namespace VALYR.Modules.Tires
                     skidIntensity = combinedMagnitude;
                 }
 
-                // Приложение результирующей силы к телу автомобиля
+                // Apply resultant 3D tire forces to vehicle chassis
                 Vector3 worldTireForce = wheelForward * fx + wheelRight * fy;
                 body.AddForceAtPosition(worldTireForce, wheel.ContactPoint);
 
-                // Обновление состояния колеса
+                // Update wheel state
                 wheel.AngularVelocity = nextOmega;
                 wheel.RotationAngle = nextAngle;
                 wheel.SlipRatio = slipRatio;

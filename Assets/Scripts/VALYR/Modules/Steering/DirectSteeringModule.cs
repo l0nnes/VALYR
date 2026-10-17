@@ -7,34 +7,35 @@ using VALYR.Core.Modules;
 namespace VALYR.Modules.Steering
 {
     /// <summary>
-    /// Модуль рулевого управления передней осью (Direct Steering Module).
-    /// Поддерживает чувствительность к скорости (speed-sensitive steering) для устойчивости на трассе
-    /// и геометрию Аккермана (Ackermann Steering Geometry) для идеального радиуса поворота внутренних и внешних колес.
+    /// Front-wheel steering module featuring speed-sensitive steering angle attenuation
+    /// and kinematic Ackermann steering geometry for optimal inside vs outside wheel turning radii.
     /// </summary>
     [Serializable]
     public class DirectSteeringModule : VehicleModule, ISteeringModule
     {
-        [Header("Углы поворота колес")]
-        [Tooltip("Максимальный угол поворота передних колес на парковочных скоростях (градусы)")]
+        [Header("Steer Angle Limits")]
+        [Tooltip("Maximum front wheel steer angle at low / parking speeds in degrees (typically 30 - 40 deg).")]
         [Range(15f, 50f)]
         public float MaxSteerAngleDeg = 36f;
 
-        [Header("Чувствительность к скорости")]
-        [Tooltip("Включить автоматическое уменьшение угла руля с ростом скорости для курсовой устойчивости")]
+        [Header("Speed Sensitivity")]
+        [Tooltip("Automatically attenuates the maximum steering angle as vehicle speed rises to maintain highway directional stability.")]
         public bool EnableSpeedSensitivity = true;
 
-        [Tooltip("Минимальный максимальный угол руля на высокой скорости (градусы)")]
+        [Tooltip("Maximum allowable steer angle at high speed in degrees (typically 10 - 15 deg).")]
         [Range(5f, 25f)]
         public float MinSteerAngleAtHighSpeedDeg = 12f;
 
-        [Tooltip("Скорость автомобиля, при которой достигается минимальный угол поворота (м/с, 40 м/с ~ 144 км/ч)")]
+        [Tooltip("Vehicle linear forward speed in m/s at which steering attenuation reaches its minimum limit (e.g. 40 m/s = 144 km/h).")]
+        [Range(10f, 100f)]
         public float HighSpeedThreshold = 40f;
 
-        [Header("Динамика руления")]
-        [Tooltip("Скорость отклика рейки рулевого механизма (1/с, чем выше — тем острее отклик)")]
+        [Header("Steering Dynamics & Geometry")]
+        [Tooltip("Rack response rate in 1/s (speed of steering servo / rack smoothing). Higher values provide sharper steering response.")]
+        [Range(4f, 30f)]
         public float SteeringResponseRate = 16f;
 
-        [Tooltip("Использовать кинематику Аккермана (внутреннее колесо поворачивает круче внешнего)")]
+        [Tooltip("Enable Ackermann steering geometry so the inside wheel steers sharper than the outside wheel, preventing tire scrubbing in sharp turns.")]
         public bool UseAckermann = true;
 
         public DirectSteeringModule()
@@ -54,7 +55,7 @@ namespace VALYR.Modules.Steering
 
             float steerInput = Mathf.Clamp(input.Steer, -1f, 1f);
 
-            // 1. Определение эффективного максимального угла с учетом скорости машины
+            // 1. Evaluate speed-sensitive effective maximum steering angle
             float forwardSpeed = Vector3.Dot(body.LinearVelocity, body.Rotation * Vector3.forward);
             float speedAbs = Mathf.Abs(forwardSpeed);
 
@@ -62,24 +63,23 @@ namespace VALYR.Modules.Steering
             if (EnableSpeedSensitivity && HighSpeedThreshold > 0.01f)
             {
                 float speedFactor = Mathf.Clamp01(speedAbs / HighSpeedThreshold);
-                // Плавное квадратичное уменьшение угла руля
+                // Smooth quadratic falloff
                 currentMaxAngleDeg = Mathf.Lerp(MaxSteerAngleDeg, MinSteerAngleAtHighSpeedDeg, speedFactor * (2f - speedFactor));
             }
 
-            // Целевой угол в радианах
+            // Target steer angle in radians
             float targetSteerRad = (steerInput * currentMaxAngleDeg) * Mathf.Deg2Rad;
 
-            // Сглаживание движения рейки руля
+            // Rack servo response smoothing
             float currentSteerRad = (state.Wheels[0].SteerAngle + state.Wheels[1].SteerAngle) * 0.5f;
             float smoothSteerRad = Mathf.Lerp(currentSteerRad, targetSteerRad, 1f - Mathf.Exp(-SteeringResponseRate * dt));
 
             float steerAngleFL;
             float steerAngleFR;
 
-            // 2. Геометрия Аккермана
+            // 2. Ackermann steering geometry
             if (UseAckermann && Mathf.Abs(smoothSteerRad) > 0.001f)
             {
-                // База автомобиля (Wheelbase L) и колея (Track W)
                 float wheelbase = Mathf.Abs(chassis.WheelOffsets[0].z - chassis.WheelOffsets[2].z);
                 float trackWidth = Mathf.Abs(chassis.WheelOffsets[1].x - chassis.WheelOffsets[0].x);
 
@@ -87,12 +87,12 @@ namespace VALYR.Modules.Steering
                 {
                     float turnRadius = wheelbase / Mathf.Tan(Mathf.Abs(smoothSteerRad));
 
-                    if (smoothSteerRad > 0f) // Поворот вправо: правое FR внутреннее, левое FL внешнее
+                    if (smoothSteerRad > 0f) // Steer right: FR is inside, FL is outside
                     {
                         steerAngleFR = Mathf.Atan(wheelbase / (turnRadius - trackWidth * 0.5f));
                         steerAngleFL = Mathf.Atan(wheelbase / (turnRadius + trackWidth * 0.5f));
                     }
-                    else // Поворот влево: левое FL внутреннее, правое FR внешнее
+                    else // Steer left: FL is inside, FR is outside
                     {
                         steerAngleFL = -Mathf.Atan(wheelbase / (turnRadius - trackWidth * 0.5f));
                         steerAngleFR = -Mathf.Atan(wheelbase / (turnRadius + trackWidth * 0.5f));
@@ -106,16 +106,16 @@ namespace VALYR.Modules.Steering
             }
             else
             {
-                // Параллельное руление
+                // Parallel steering
                 steerAngleFL = smoothSteerRad;
                 steerAngleFR = smoothSteerRad;
             }
 
-            // Запись в передние колеса (FL, FR)
+            // Assign to front wheels (FL, FR)
             state.Wheels.GetRef(0).SteerAngle = steerAngleFL;
             state.Wheels.GetRef(1).SteerAngle = steerAngleFR;
 
-            // Задние колеса фиксированы
+            // Rear wheels remain fixed
             state.Wheels.GetRef(2).SteerAngle = 0f;
             state.Wheels.GetRef(3).SteerAngle = 0f;
         }

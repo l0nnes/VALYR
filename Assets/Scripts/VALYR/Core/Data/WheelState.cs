@@ -4,52 +4,52 @@ using UnityEngine;
 namespace VALYR.Core
 {
     /// <summary>
-    /// Полное физическое состояние одного колеса на начало/конец тика симуляции.
-    /// Хранит кинематику, сжатие подвески, контакт и силы пятна сцепления.
+    /// Complete physics state of a single wheel at the start/end of a simulation tick.
+    /// Stores kinematics, suspension compression, surface contact data, and tire forces.
     /// </summary>
     [Serializable]
     public struct WheelState
     {
-        // --- Кинематика вращения колеса ---
-        [Tooltip("Угловая скорость вращения колеса (рад/с)")]
+        // --- Wheel Rotational Kinematics ---
+        [Tooltip("Rotational angular velocity of the wheel hub in rad/s.")]
         public float AngularVelocity;
 
-        [Tooltip("Накопленный визуальный угол поворота колеса (рад)")]
+        [Tooltip("Accumulated visual roll rotation angle of the wheel in radians.")]
         public float RotationAngle;
 
-        [Tooltip("Текущий угол поворота колеса вокруг вертикальной оси (рад)")]
+        [Tooltip("Current steer angle of the wheel around the vertical axis in radians.")]
         public float SteerAngle;
 
-        // --- Подвеска и контакт с поверхностью ---
-        [Tooltip("Есть ли касание колеса с поверхностью в данном тике")]
+        // --- Suspension & Ground Contact ---
+        [Tooltip("Indicates whether the wheel is currently touching a ground surface.")]
         public bool HasContact;
 
-        [Tooltip("Точка контакта в мировых координатах")]
+        [Tooltip("World position of the ground contact patch.")]
         public Vector3 ContactPoint;
 
-        [Tooltip("Нормаль поверхности в точке контакта")]
+        [Tooltip("Surface contact normal vector in world space.")]
         public Vector3 ContactNormal;
 
-        [Tooltip("Сжатие подвески в метрах (0 = полностью разжата)")]
+        [Tooltip("Suspension compression travel in meters (0 = fully extended).")]
         public float SuspensionCompression;
 
-        [Tooltip("Скорость сжатия подвески в м/с (+ сжатие, - отбой)")]
+        [Tooltip("Suspension velocity along stroke in m/s (+ compression, - rebound).")]
         public float SuspensionVelocity;
 
-        [Tooltip("Результирующая нормальная нагрузка на колесо (Ньютоны, Fz)")]
+        [Tooltip("Total vertical normal load on the tire contact patch in Newtons (Fz).")]
         public float NormalLoad;
 
-        // --- Силы шины и сцепление ---
-        [Tooltip("Продольный коэффициент проскальзывания (Longitudinal Slip, sx)")]
+        // --- Tire Forces & Slip Dynamics ---
+        [Tooltip("Longitudinal tire slip ratio (sx, dimensionless).")]
         public float SlipRatio;
 
-        [Tooltip("Боковой угол/коэффициент увода (Lateral Slip, sy)")]
+        [Tooltip("Lateral tire slip angle / ratio (sy, dimensionless).")]
         public float SlipAngle;
 
-        [Tooltip("Результирующая сила сцепления шины в мировых координатах (Ньютоны)")]
+        [Tooltip("Resultant 3D tire friction force applied to vehicle in world space (Newtons).")]
         public Vector3 TireForce;
 
-        [Tooltip("Интенсивность скольжения 0..1 (для эффектов звука визга и следов шин в UpdateView)")]
+        [Tooltip("Normalized skid intensity 0..1 for audio squeal, tire smoke, and skid mark VFX.")]
         public float SkidIntensity;
     }
 }

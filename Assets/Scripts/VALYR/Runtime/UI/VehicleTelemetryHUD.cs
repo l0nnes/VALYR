@@ -6,21 +6,22 @@ using VALYR.Core;
 namespace VALYR.Runtime.UI
 {
     /// <summary>
-    /// Экранная панель телеметрии физики автомобиля в реальном времени (OnGUI HUD).
-    /// Выводит параметры шасси, подвески, оборотов мотора, сил шин и проскальзывания каждого колеса.
-    /// Переключается клавишей F1.
+    /// Real-time on-screen telemetry display HUD (OnGUI).
+    /// Displays chassis speed, engine RPM, current gear, suspension travel,
+    /// normal loads, tire slip ratios, slip angles, and contact forces.
+    /// Toggle visibility with F1 key.
     /// </summary>
     [RequireComponent(typeof(VehicleController))]
     public class VehicleTelemetryHUD : MonoBehaviour
     {
-        [Header("Отображение")]
-        [Tooltip("Показывать ли телеметрию на экране")]
+        [Header("Display Options")]
+        [Tooltip("Whether to draw telemetry HUD on screen.")]
         public bool ShowHUD = true;
 
-        [Tooltip("Клавиша включения/выключения HUD (F1)")]
+        [Tooltip("Keyboard shortcut key to toggle HUD visibility.")]
         public Key ToggleKey = Key.F1;
 
-        [Header("Позиция и стиль")]
+        [Header("Position & Dimensions")]
         public Rect WindowRect = new Rect(20, 20, 720, 480);
 
         private VehicleController _controller;
@@ -32,7 +33,7 @@ namespace VALYR.Runtime.UI
         private GUIStyle _yellowStyle;
 
         private readonly StringBuilder _sb = new StringBuilder(2048);
-        private static readonly string[] WheelNames = { "FL (Перед-Лев)", "FR (Перед-Прав)", "RL (Зад-Лев)", "RR (Зад-Прав)" };
+        private static readonly string[] WheelNames = { "FL (Front-Left)", "FR (Front-Right)", "RL (Rear-Left)", "RR (Rear-Right)" };
 
         private void Awake()
         {
@@ -63,21 +64,21 @@ namespace VALYR.Runtime.UI
                 float speedMs = rb != null ? rb.linearVelocity.magnitude : 0f;
                 float speedKmh = speedMs * 3.6f;
 
-                // Заголовок
-                GUILayout.Label($"<b>VALYR VEHICLE TELEMETRY</b> (Нажмите [F1] чтобы скрыть)", _headerStyle);
+                // Header
+                GUILayout.Label($"<b>VALYR VEHICLE TELEMETRY</b> (Press [F1] to toggle)", _headerStyle);
                 GUILayout.Space(4);
 
-                // 1. Общие параметры автомобиля
+                // 1. General vehicle parameters
                 string gearText = state.CurrentGear == -1 ? "R" : (state.CurrentGear == 0 ? "N" : state.CurrentGear.ToString());
-                GUILayout.Label($"<b>Скорость:</b> {speedKmh:F1} км/ч ({speedMs:F1} м/с) | <b>Обороты:</b> {state.EngineRpm:F0} RPM | <b>Передача:</b> {gearText} | <b>Сцепление:</b> {state.ClutchEngagement * 100f:F0}%", _labelStyle);
+                GUILayout.Label($"<b>Speed:</b> {speedKmh:F1} km/h ({speedMs:F1} m/s) | <b>Engine:</b> {state.EngineRpm:F0} RPM | <b>Gear:</b> {gearText} | <b>Clutch:</b> {state.ClutchEngagement * 100f:F0}%", _labelStyle);
 
-                // Полосы ввода
-                GUILayout.Label($"<b>Ввод:</b> Газ: [{GetBar(input.Throttle)}] {input.Throttle * 100f:F0}% | Тормоз: [{GetBar(input.Brake)}] {input.Brake * 100f:F0}% | Руль: {input.Steer * 100f:+0;-0;0}% | Ручник: {(input.Handbrake > 0.5f ? "ВКЛ" : "ВЫКЛ")}", _labelStyle);
+                // Driver Inputs
+                GUILayout.Label($"<b>Input:</b> Throttle: [{GetBar(input.Throttle)}] {input.Throttle * 100f:F0}% | Brake: [{GetBar(input.Brake)}] {input.Brake * 100f:F0}% | Steer: {input.Steer * 100f:+0;-0;0}% | E-Brake: {(input.Handbrake > 0.5f ? "ON" : "OFF")}", _labelStyle);
 
                 GUILayout.Space(8);
-                GUILayout.Label("<b>СОСТОЯНИЕ КОЛЕС И ПОДВЕСКИ:</b>", _labelStyle);
+                GUILayout.Label("<b>WHEEL KINEMATICS & SUSPENSION STATE:</b>", _labelStyle);
 
-                // 2. Таблица параметров по 4 колесам
+                // 2. 4-Wheels telemetry cards
                 GUILayout.BeginHorizontal();
                 {
                     for (int i = 0; i < 4; i++)
@@ -91,31 +92,31 @@ namespace VALYR.Runtime.UI
                         {
                             GUILayout.Label($"<b>{WheelNames[i]}</b>", _headerStyle);
 
-                            // Контакт
+                            // Ground Contact
                             if (ws.HasContact)
                             {
-                                GUILayout.Label("Статус: <b>[КОНТАКТ]</b>", _greenStyle);
+                                GUILayout.Label("Status: <b>[GROUNDED]</b>", _greenStyle);
                             }
                             else
                             {
-                                GUILayout.Label("Статус: <b>[В ВОЗДУХЕ]</b>", _redStyle);
+                                GUILayout.Label("Status: <b>[AIRBORNE]</b>", _redStyle);
                             }
 
-                            // Подвеска
+                            // Suspension
                             float compCm = ws.SuspensionCompression * 100f;
                             float restCm = _controller.Suspension.FrontAxle.RestLength * 100f;
-                            GUILayout.Label($"Сжатие: {compCm:F1} см / {restCm:F1} см", _labelStyle);
-                            GUILayout.Label($"Скор. сжатия: {ws.SuspensionVelocity:+0.00;-0.00;0.00} м/с", _labelStyle);
-                            GUILayout.Label($"Нагрузка Fz: <b>{ws.NormalLoad:F0} Н</b>", _labelStyle);
+                            GUILayout.Label($"Travel: {compCm:F1} cm / {restCm:F1} cm", _labelStyle);
+                            GUILayout.Label($"Damper Vel: {ws.SuspensionVelocity:+0.00;-0.00;0.00} m/s", _labelStyle);
+                            GUILayout.Label($"Load Fz: <b>{ws.NormalLoad:F0} N</b>", _labelStyle);
 
-                            // Кинематика колеса
+                            // Kinematics
                             GUILayout.Space(4);
-                            GUILayout.Label($"Угол руля: {ws.SteerAngle * Mathf.Rad2Deg:+0.0;-0.0;0.0}°", _labelStyle);
-                            GUILayout.Label($"Обороты: {wheelRpm:F0} RPM", _labelStyle);
-                            GUILayout.Label($"Скорость: {wheelLinearSpeed * 3.6f:F1} км/ч", _labelStyle);
-                            GUILayout.Label($"Omega: {ws.AngularVelocity:F1} рад/с", _labelStyle);
+                            GUILayout.Label($"Steer: {ws.SteerAngle * Mathf.Rad2Deg:+0.0;-0.0;0.0}°", _labelStyle);
+                            GUILayout.Label($"Wheel RPM: {wheelRpm:F0} RPM", _labelStyle);
+                            GUILayout.Label($"Wheel Speed: {wheelLinearSpeed * 3.6f:F1} km/h", _labelStyle);
+                            GUILayout.Label($"Omega: {ws.AngularVelocity:F1} rad/s", _labelStyle);
 
-                            // Сцепление и скольжение
+                            // Grip & Slip
                             GUILayout.Space(4);
                             GUIStyle slipStyle = (Mathf.Abs(ws.SlipRatio) > 0.25f || Mathf.Abs(ws.SlipAngle) > 0.2f) ? _yellowStyle : _labelStyle;
                             GUILayout.Label($"Slip Ratio: {ws.SlipRatio:+0.00;-0.00;0.00}", slipStyle);
@@ -128,9 +129,9 @@ namespace VALYR.Runtime.UI
                             float fxLocal = Vector3.Dot(ws.TireForce, wheelForward);
                             float fyLocal = Vector3.Dot(ws.TireForce, wheelRight);
 
-                            GUILayout.Label($"Сила Fx (тяга): {fxLocal:+0;-0;0} Н", _labelStyle);
-                            GUILayout.Label($"Сила Fy (бок): {fyLocal:+0;-0;0} Н", _labelStyle);
-                            GUILayout.Label($"Skid: {ws.SkidIntensity * 100f:F0}%", ws.SkidIntensity > 0.3f ? _yellowStyle : _labelStyle);
+                            GUILayout.Label($"Traction Fx: {fxLocal:+0;-0;0} N", _labelStyle);
+                            GUILayout.Label($"Lateral Fy: {fyLocal:+0;-0;0} N", _labelStyle);
+                            GUILayout.Label($"Skid Intensity: {ws.SkidIntensity * 100f:F0}%", ws.SkidIntensity > 0.3f ? _yellowStyle : _labelStyle);
                         }
                         GUILayout.EndVertical();
                     }

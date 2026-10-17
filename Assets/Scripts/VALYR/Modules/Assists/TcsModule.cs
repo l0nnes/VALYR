@@ -7,19 +7,20 @@ using VALYR.Core.Modules;
 namespace VALYR.Modules.Assists
 {
     /// <summary>
-    /// Модуль антипробуксовочной системы (Traction Control System / TCS).
-    /// Отслеживает избыточную пробуксовку ведущих колес при ускорении (SlipRatio > SlipThreshold)
-    /// и ограничивает подаваемый крутящий момент (MaxDriveTorqueLimit), предотвращая срыв в занос и шлифовку асфальта.
+    /// Traction Control System (TCS) module.
+    /// Monitors excessive drive wheel spin during acceleration (SlipRatio &gt; SlipThreshold)
+    /// and dynamically cuts delivered engine torque (MaxDriveTorqueLimit), preventing
+    /// burnout and maintaining directional stability.
     /// </summary>
     [Serializable]
     public class TcsModule : VehicleModule, IWheelAssistModule
     {
-        [Header("Настройки TCS")]
-        [Tooltip("Порог срабатывания по продольной пробуксовке (обычно 0.15 .. 0.28)")]
+        [Header("Traction Control System (TCS)")]
+        [Tooltip("Positive longitudinal slip ratio threshold to trigger TCS torque cut (typical: 0.15 to 0.30).")]
         [Range(0.08f, 0.5f)]
         public float SlipThreshold = 0.20f;
 
-        [Tooltip("Коэффициент урезания тяги при срабатывании TCS (0.1..0.6)")]
+        [Tooltip("Drive torque delivery ratio during TCS intervention (0.1 to 0.6, fraction of engine torque delivered to slipping wheel).")]
         [Range(0.05f, 0.7f)]
         public float TorqueReductionRatio = 0.35f;
 
@@ -45,7 +46,7 @@ namespace VALYR.Modules.Assists
                 if (!wheel.HasContact)
                     continue;
 
-                // Если продольная пробуксовка превышает порог срыва
+                // If wheel exceeds positive slip threshold (wheel spinning under throttle)
                 if (wheel.SlipRatio > SlipThreshold)
                 {
                     ref WheelActuation wheelAct = ref actuation.GetRef(i);

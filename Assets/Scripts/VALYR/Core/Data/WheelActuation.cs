@@ -4,25 +4,25 @@ using UnityEngine;
 namespace VALYR.Core
 {
     /// <summary>
-    /// Буфер команд и моментов на колесо на текущий физический тик.
-    /// Заполняется трансмиссией и тормозами, модифицируется электронными помощниками (ABS, TCS, ESP).
+    /// Actuation buffer containing drive and braking torques applied to a single wheel in the current tick.
+    /// Populated by transmission and brakes, then modulated by electronic driver assists (ABS, TCS).
     /// </summary>
     [Serializable]
     public struct WheelActuation
     {
-        [Tooltip("Крутящий момент привода от двигателя/трансмиссии (Нм)")]
+        [Tooltip("Drive torque delivered from engine/transmission in Newton-meters (N*m).")]
         public float DriveTorque;
 
-        [Tooltip("Тормозной момент от педали тормоза (Нм)")]
+        [Tooltip("Brake torque commanded by driver service footbrake in Newton-meters (N*m).")]
         public float BrakeTorque;
 
-        [Tooltip("Тормозной момент от стояночного тормоза (Нм)")]
+        [Tooltip("Brake torque commanded by parking / handbrake in Newton-meters (N*m).")]
         public float HandbrakeTorque;
 
-        [Tooltip("Верхний предел момента тяги от TCS (float.MaxValue = без ограничений)")]
+        [Tooltip("Maximum drive torque limit enforced by TCS assist (float.MaxValue = unconstrained).")]
         public float MaxDriveTorqueLimit;
 
-        [Tooltip("Верхний предел тормозного момента от ABS (float.MaxValue = без ограничений)")]
+        [Tooltip("Maximum brake torque limit enforced by ABS assist (float.MaxValue = unconstrained).")]
         public float MaxBrakeTorqueLimit;
 
         public void Reset(float maxLimit = float.MaxValue)

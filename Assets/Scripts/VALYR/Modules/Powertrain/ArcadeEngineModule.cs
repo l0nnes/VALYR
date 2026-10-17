@@ -6,40 +6,48 @@ using VALYR.Core.Modules;
 namespace VALYR.Modules.Powertrain
 {
     /// <summary>
-    /// Модуль двигателя внутреннего сгорания (ДВС) с динамикой коленчатого вала,
-    /// настраиваемой кривой крутящего момента, регулятором холостого хода и отсечкой (Rev Limiter).
+    /// Internal combustion engine (ICE) module featuring crankshaft dynamics,
+    /// customizable torque curve, idle governor, rev limiter, and torque converter fluid coupling.
     /// </summary>
     [Serializable]
     public class ArcadeEngineModule : VehicleModule, IEngineModule
     {
-        [Header("Обороты двигателя (RPM)")]
-        [Tooltip("Обороты холостого хода (RPM)")]
+        [Header("RPM Limits")]
+        [Tooltip("Engine idle speed in RPM (e.g. 700 - 850 RPM for road cars).")]
+        [Range(500f, 1500f)]
         public float IdleRpm = 750f;
 
-        [Tooltip("Обороты срабатывания отсечки топлива (RPM)")]
+        [Tooltip("Fuel cut rev limiter threshold in RPM (e.g. 6200 - 7000 RPM).")]
+        [Range(4000f, 10000f)]
         public float RevLimiterRpm = 6500f;
 
-        [Tooltip("Максимальные допустимые обороты (RPM)")]
+        [Tooltip("Absolute maximum allowable engine speed in RPM.")]
+        [Range(5000f, 12000f)]
         public float MaxRpm = 6800f;
 
-        [Tooltip("Обороты сваливания гидротрансформатора при заблокированных колесах и 100% газе (RPM)")]
+        [Tooltip("Torque converter stall speed in RPM with wheels locked at 100% throttle (typically 2000 - 2600 RPM for road automatics).")]
+        [Range(1200f, 4000f)]
         public float StallRpm = 2300f;
 
-        [Header("Крутящий момент")]
-        [Tooltip("Максимальный пиковый крутящий момент мотора (Нм)")]
+        [Header("Torque & Power")]
+        [Tooltip("Peak flywheel torque output in Newton-meters (Nm). Road car 1.6L: ~155 Nm, V8: ~450 Nm, Supercar: ~750 Nm.")]
+        [Min(20f)]
         public float MaxTorque = 155f;
 
-        [Tooltip("Момент сопротивления / торможения двигателем при сбросе газа (Нм)")]
+        [Tooltip("Passive engine braking drag torque when throttle is closed in gear (Nm).")]
+        [Range(0f, 150f)]
         public float EngineBrakingTorque = 35f;
 
-        [Tooltip("Момент инерции маховика и коленвала (кг*м^2, обычно 0.15..0.35)")]
+        [Tooltip("Flywheel and crankshaft rotational moment of inertia (kg*m^2). Lighter flywheels rev faster; heavier flywheels maintain momentum.")]
+        [Range(0.05f, 0.8f)]
         public float FlywheelInertia = 0.16f;
 
-        [Tooltip("Коэффициент умножения момента гидротрансформатором при старте с места (1.8..2.2)")]
+        [Tooltip("Torque multiplication ratio of the hydrodynamic torque converter at maximum stall/slip (1.0 = no multiplication, 1.8 - 2.2 = standard automatic).")]
+        [Range(1.0f, 2.5f)]
         public float TorqueConverterMultiplication = 1.85f;
 
-        [Header("Кривая крутящего момента")]
-        [Tooltip("Нормализованная кривая крутящего момента (по X: нормализованные обороты 0..1, по Y: множитель момента 0..1)")]
+        [Header("Torque Curve")]
+        [Tooltip("Normalized torque curve. X-axis: normalized RPM (0 = Idle, 1 = Max RPM), Y-axis: torque multiplier (0..1).")]
         public AnimationCurve TorqueCurve = new(
             new Keyframe(0f, 0.65f),
             new Keyframe(0.25f, 0.85f),
@@ -79,41 +87,41 @@ namespace VALYR.Modules.Powertrain
 
             float throttle = state.CurrentGear == -1 ? Mathf.Clamp01(input.Brake) : Mathf.Clamp01(input.Throttle);
 
-            // 1. Проверка отсечки максимальных оборотов (Rev Limiter fuel cut)
+            // 1. Fuel cut rev limiter check
             bool isRevLimiting = currentRpm >= RevLimiterRpm;
             float effectiveThrottle = isRevLimiting ? 0f : throttle;
 
-            // 2. Расчет максимального момента на текущих оборотах
+            // 2. Evaluate available engine torque at current RPM
             float normalizedRpm = Mathf.Clamp01((currentRpm - IdleRpm) / Mathf.Max(1f, MaxRpm - IdleRpm));
             float torqueMultiplier = TorqueCurve.Evaluate(normalizedRpm);
             float availableTorque = MaxTorque * torqueMultiplier;
 
-            // 3. Динамика оборотов двигателя
+            // 3. Engine rotational dynamics
             if (!feedback.IsDisengaged && feedback.ClutchEngagement > 0.05f)
             {
-                // Гидротрансформатор / эластичное сцепление старта:
-                // При малых оборотах трансмиссии или остановке на передаче мотор развивает обороты сваливания (StallRpm)
+                // Torque converter fluid coupling / launch clutch:
+                // At low wheel speeds or standstill, engine revs up to stall target RPM matching throttle demand
                 float stallTargetRpm = Mathf.Lerp(IdleRpm, StallRpm, effectiveThrottle);
                 float targetRpm = Mathf.Max(feedback.DrivetrainRpm, stallTargetRpm);
 
                 float syncRate = 18f * feedback.ClutchEngagement;
                 currentRpm = Mathf.Lerp(currentRpm, targetRpm, 1f - Mathf.Exp(-syncRate * dt));
 
-                // Умножение момента гидротрансформатором при трогании с места
+                // Fluid torque multiplication during high slip launch
                 float speedRatio = Mathf.Clamp01(feedback.DrivetrainRpm / Mathf.Max(currentRpm, 1f));
                 float torqueMultiplierConverter = Mathf.Lerp(TorqueConverterMultiplication, 1.0f, speedRatio);
 
-                // Двигатель отдает момент в трансмиссию
+                // Engine drive torque delivery
                 float engineDriveTorque = (availableTorque * effectiveThrottle) * torqueMultiplierConverter;
 
-                // Торможение двигателем при закрытом дросселе на ходу
+                // Engine braking on overrun at speed with closed throttle
                 if (effectiveThrottle < 0.05f && feedback.DrivetrainRpm > IdleRpm + 150f)
                 {
                     engineDriveTorque -= EngineBrakingTorque * (currentRpm / MaxRpm);
                 }
                 else if (state.CurrentGear == 1 && effectiveThrottle < 0.05f && input.Brake < 0.05f && input.Handbrake < 0.05f && feedback.DrivetrainRpm < 350f)
                 {
-                    // Ползущий режим АКПП (Creep Mode) только на 1 передаче при полностью отпущенных тормозах и выключенном ручнике
+                    // Automatic transmission idle creep in 1st gear when all brakes are released
                     engineDriveTorque = 15f;
                 }
 
@@ -121,7 +129,7 @@ namespace VALYR.Modules.Powertrain
             }
             else
             {
-                // Нейтраль или выжатое сцепление: свободная раскрутка маховика
+                // Disengaged clutch or neutral: free revving flywheel
                 float accelTorque = availableTorque * effectiveThrottle;
                 float dragTorque = (EngineBrakingTorque + 15f) * (currentRpm / MaxRpm);
                 float netTorque = accelTorque - dragTorque;
@@ -130,11 +138,10 @@ namespace VALYR.Modules.Powertrain
                 float deltaRpm = deltaOmega * RadPerSecToRpm;
                 currentRpm += deltaRpm;
 
-                // В нейтрали момент на колеса не передается
                 output.OutputTorque = 0f;
             }
 
-            // Защита от заглохания: регулятор оборотов холостого хода (Idle Governor)
+            // Idle governor protection against stalling
             if (currentRpm < IdleRpm)
             {
                 currentRpm = Mathf.Lerp(currentRpm, IdleRpm, 1f - Mathf.Exp(-20f * dt));

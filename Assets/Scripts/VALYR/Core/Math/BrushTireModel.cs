@@ -4,24 +4,29 @@ using UnityEngine;
 namespace VALYR.Core.Math
 {
     /// <summary>
-    /// Настройки физических параметров щеточной модели шины (Brush Tire Model).
+    /// Physical configuration settings for the Brush Tire Model (Fiala / Pacejka).
     /// </summary>
     [Serializable]
     public struct BrushTireParameters
     {
-        [Tooltip("Продольная жесткость шины (Ньютоны на единицу slip, Cx)")]
+        [Tooltip("Longitudinal tire tread stiffness in Newtons per unit slip (N/slip, Cx, typical: 20,000 - 45,000 N).")]
+        [Min(1000f)]
         public float LongitudinalStiffness;
 
-        [Tooltip("Поперечная жесткость увода шины (Ньютоны на радиан, Cy)")]
+        [Tooltip("Cornering / lateral stiffness of tire tread in Newtons per radian (N/rad, Cy, typical: 15,000 - 40,000 N/rad).")]
+        [Min(1000f)]
         public float LateralStiffness;
 
-        [Tooltip("Базовый коэффициент продольного трения шины (mu_x)")]
+        [Tooltip("Peak longitudinal friction coefficient (mu_x, typical: 0.95 - 1.15 on dry asphalt, 0.60 on wet).")]
+        [Range(0.1f, 2.5f)]
         public float FrictionCoefficientX;
 
-        [Tooltip("Базовый коэффициент поперечного трения шины (mu_y)")]
+        [Tooltip("Peak lateral friction coefficient (mu_y, typical: 0.90 - 1.10 on dry asphalt, 0.55 on wet).")]
+        [Range(0.1f, 2.5f)]
         public float FrictionCoefficientY;
 
-        [Tooltip("Порог скорости для знаменателя скольжения (м/с)")]
+        [Tooltip("Low-speed denominator threshold in m/s to prevent division by zero in slip formulation (typical: 0.3 - 0.8 m/s).")]
+        [Range(0.1f, 2.0f)]
         public float LowSpeedThreshold;
 
         public static BrushTireParameters Default => new()
@@ -35,19 +40,19 @@ namespace VALYR.Core.Math
     }
 
     /// <summary>
-    /// Высокопроизводительная реализация Щеточной модели шины (Fiala / Pacejka Brush Model).
-    /// Особенности:
-    /// 1. Непрерывный эллипс комбинированного сцепления (Combined Slip Ellipse).
-    /// 2. Истинная статическая и кинематическая сила сцепления без искусственного обнуления на малых скоростях.
-    /// 3. Симметричный учет продольной и поперечной скорости в знаменателе slip.
-    /// 4. Нулевые аллокации в куче.
+    /// High-performance analytical Brush Tire Model (Fiala / Pacejka hybrid).
+    /// Features:
+    /// 1. Smooth combined slip friction ellipse (longitudinal + lateral coupling).
+    /// 2. True static and kinematic friction without artificial low-speed zeroing.
+    /// 3. Symmetric contact patch velocity denominator.
+    /// 4. Zero heap allocations.
     /// </summary>
     public static class BrushTireModel
     {
         private const float Epsilon = 1e-5f;
 
         /// <summary>
-        /// Вычисляет продольный коэффициент пробуксовки (sx) и поперечный угол увода (sy).
+        /// Computes longitudinal slip ratio (sx) and lateral slip angle / slip ratio (sy).
         /// </summary>
         public static void CalculateSlip(
             float angularVelocity,
@@ -58,19 +63,18 @@ namespace VALYR.Core.Math
             out float slipAngle)
         {
             float linearWheelSpeed = angularVelocity * wheelRadius;
-            // Истинная суммарная линейная скорость пятна контакта
             float contactSpeed = UnityEngine.Mathf.Sqrt(forwardSpeed * forwardSpeed + sideSpeed * sideSpeed);
             float denominator = UnityEngine.Mathf.Max(contactSpeed, 0.5f);
 
             // sx = (omega * R - Vx) / max(V_contact, V_min)
             slipRatio = (linearWheelSpeed - forwardSpeed) / denominator;
 
-            // sy = -Vy / max(V_contact, V_min) (тангенс угла увода)
+            // sy = -Vy / max(V_contact, V_min) (tangent of slip angle)
             slipAngle = -sideSpeed / denominator;
         }
 
         /// <summary>
-        /// Рассчитывает продольную (Fx) и поперечную (Fy) силы сцепления шины.
+        /// Calculates coupled longitudinal (Fx) and lateral (Fy) tire contact forces.
         /// </summary>
         public static void CalculateTireForces(
             in BrushTireParameters parameters,
@@ -82,7 +86,7 @@ namespace VALYR.Core.Math
             out float fy,
             out float skidIntensity)
         {
-            // Если колесо оторвано от земли или нагрузка нулевая — сил сцепления нет
+            // If wheel has no normal load or is off the ground, contact forces are zero
             if (normalLoad <= Epsilon)
             {
                 fx = 0f;
@@ -97,11 +101,11 @@ namespace VALYR.Core.Math
             float maxFx = effectiveMuX * normalLoad;
             float maxFy = effectiveMuY * normalLoad;
 
-            // Безразмерные компоненты упругой деформации щетинок
+            // Dimensionless bristle elastic deformation components
             float sigmaX = (parameters.LongitudinalStiffness * slipRatio) / maxFx;
             float sigmaY = (parameters.LateralStiffness * slipAngle) / maxFy;
 
-            // Результирующий вектор скольжения
+            // Combined resultant slip vector
             float sigma = UnityEngine.Mathf.Sqrt(sigmaX * sigmaX + sigmaY * sigmaY);
 
             if (sigma < Epsilon)
@@ -112,25 +116,25 @@ namespace VALYR.Core.Math
                 return;
             }
 
-            // theta = 1/3 * sigma. Переход в полное скольжение при theta >= 1.0 (sigma >= 3.0)
+            // theta = 1/3 * sigma. Full sliding occurs when theta >= 1.0 (sigma >= 3.0)
             float theta = sigma * (1f / 3f);
             float fn;
 
             if (theta < 1.0f)
             {
-                // Зона упругой адгезии + частичного скольжения
+                // Elastic adhesion + partial sliding zone
                 // fn = 1 - (1 - theta)^3 = theta * (3 - 3*theta + theta^2)
                 fn = theta * (3f - 3f * theta + theta * theta);
                 skidIntensity = theta;
             }
             else
             {
-                // Полный срыв сцепления (Full Sliding / Drift / Burnout)
+                // Full saturation / sliding (burnout, drift, locked wheel)
                 fn = 1.0f;
                 skidIntensity = 1.0f;
             }
 
-            // Проекция на оси с учетом эллипса трения
+            // Coupled projections onto tire coordinate axes
             fx = maxFx * fn * (sigmaX / sigma);
             fy = maxFy * fn * (sigmaY / sigma);
         }

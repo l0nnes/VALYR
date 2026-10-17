@@ -7,31 +7,37 @@ using VALYR.Core.Modules;
 namespace VALYR.Modules.Suspension
 {
     /// <summary>
-    /// Физические параметры подвески для одной оси (передняя / задняя).
+    /// Physical suspension axle configuration (front or rear).
     /// </summary>
     [Serializable]
     public struct SuspensionAxleSettings
     {
-        [Tooltip("Длина подвески в свободном ненагруженном состоянии (метры)")]
+        [Tooltip("Unloaded rest length of the spring in meters (e.g. 0.35m).")]
+        [Range(0.1f, 0.8f)]
         public float RestLength;
 
-        [Tooltip("Максимальный допустимый ход сжатия подвески (метры)")]
+        [Tooltip("Maximum allowable suspension travel / compression distance in meters (e.g. 0.22m for road car, 0.35m for SUV).")]
+        [Range(0.05f, 0.6f)]
         public float MaxTravel;
 
-        [Tooltip("Жесткость пружины (Ньютоны / метр)")]
+        [Tooltip("Linear spring stiffness in Newtons per meter (N/m). Road sedan: 20000 - 28000 N/m, Sports car: 40000 - 65000 N/m.")]
+        [Min(1000f)]
         public float SpringStiffness;
 
-        [Tooltip("Коэффициент демпфирования при ходе сжатия (Bump Damping, Н*с/м)")]
+        [Tooltip("Shock absorber damping rate during compression / bump (N*s/m). Controls body dive and ride harshness.")]
+        [Min(100f)]
         public float DamperCompressionRate;
 
-        [Tooltip("Коэффициент демпфирования при ходе отбоя (Rebound Damping, Н*с/м)")]
+        [Tooltip("Shock absorber damping rate during rebound / extension (N*s/m). Typically 1.4 - 1.8x higher than compression to control body float.")]
+        [Min(100f)]
         public float DamperReboundRate;
 
-        [Tooltip("Относительный порог срабатывания отбойника (0.0..1.0 от MaxTravel, обычно 0.75..0.85)")]
+        [Tooltip("Relative compression travel threshold where the progressive polyurethane bump stop engages (0.75 - 0.85).")]
         [Range(0.5f, 0.95f)]
         public float BumpStopThresholdRatio;
 
-        [Tooltip("Квадратичная жесткость полиуретанового отбойника (Н / м^2)")]
+        [Tooltip("Progressive quadratic stiffness of the bump stop in N/m^2. Prevents suspension bottoming out hard.")]
+        [Min(1000f)]
         public float BumpStopStiffness;
 
         public static SuspensionAxleSettings DefaultFront => new()
@@ -58,19 +64,21 @@ namespace VALYR.Modules.Suspension
     }
 
     /// <summary>
-    /// Модуль независимой пружинно-амортизаторной подвески на основе лучевого сканирования (Raycast Suspension).
-    /// Поддерживает раздельные параметры для передней и задней осей, ассиметричное демпфирование
-    /// сжатия/отбоя и нелинейные отбойники (Bump Stops).
+    /// Independent raycast suspension module with separate front and rear axle tuning,
+    /// asymmetric bump/rebound damping, and progressive bump stop bottoming-out protection.
     /// </summary>
     [Serializable]
     public class RaycastSuspensionModule : VehicleModule, ISuspensionModule
     {
-        [Header("Настройки подвески по осям")]
+        [Header("Axle Settings")]
+        [Tooltip("Suspension settings for the front axle (FL, FR).")]
         public SuspensionAxleSettings FrontAxle = SuspensionAxleSettings.DefaultFront;
+
+        [Tooltip("Suspension settings for the rear axle (RL, RR).")]
         public SuspensionAxleSettings RearAxle = SuspensionAxleSettings.DefaultRear;
 
-        [Header("Коллизии поверхности")]
-        [Tooltip("Маска слоев для поиска поверхности дороги")]
+        [Header("Surface Detection")]
+        [Tooltip("Layer mask specifying ground colliders that the suspension raycast detects.")]
         public LayerMask SurfaceLayers = ~0;
 
         public RaycastSuspensionModule()
@@ -115,20 +123,20 @@ namespace VALYR.Modules.Suspension
                     float currentLength = hit.Distance - radius;
                     float compression = Mathf.Clamp(settings.RestLength - currentLength, 0f, settings.MaxTravel);
 
-                    // Скорость сжатия подвески (+ сжатие при движении кузова вниз к земле, - отбой)
+                    // Suspension compression velocity (+ compression as body moves toward ground, - rebound)
                     Vector3 mountVelocity = body.GetPointVelocity(mountPoint);
                     float suspVelocity = Vector3.Dot(mountVelocity, suspDown);
 
-                    // 1. Сила упругости пружины Гука
+                    // 1. Hooke's linear spring force
                     float fSpring = settings.SpringStiffness * compression;
 
-                    // 2. Сила амортизатора с раздельным сжатием и отбоем
+                    // 2. Shock absorber damper force with asymmetric bump vs rebound
                     float damperCoeff = suspVelocity >= 0f
                         ? settings.DamperCompressionRate
                         : settings.DamperReboundRate;
                     float fDamper = damperCoeff * suspVelocity;
 
-                    // 3. Нелинейный прогрессивный отбойник (Bump Stop)
+                    // 3. Progressive polyurethane bump stop
                     float bumpThreshold = settings.MaxTravel * settings.BumpStopThresholdRatio;
                     float fBump = 0f;
                     if (compression > bumpThreshold)
@@ -137,14 +145,14 @@ namespace VALYR.Modules.Suspension
                         fBump = settings.BumpStopStiffness * excess * excess;
                     }
 
-                    // Результирующая сила подвески (подвеска не может притягивать машину к земле)
+                    // Resultant suspension normal load (suspension cannot pull vehicle downward)
                     float totalForce = Mathf.Max(0f, fSpring + fDamper + fBump);
 
-                    // Приложение силы вдоль оси подвески вверх к кузову в точке крепления подвески
+                    // Apply suspension upward force at the mount point on the chassis body
                     Vector3 forceVector = -suspDown * totalForce;
                     body.AddForceAtPosition(forceVector, mountPoint);
 
-                    // Сохранение состояния колеса
+                    // Update wheel contact state
                     wheel.HasContact = true;
                     wheel.ContactPoint = hit.Point;
                     wheel.ContactNormal = hit.Normal;
@@ -154,7 +162,7 @@ namespace VALYR.Modules.Suspension
                 }
                 else
                 {
-                    // Колесо в воздухе
+                    // Wheel airborne
                     wheel.HasContact = false;
                     wheel.ContactPoint = mountPoint + suspDown * maxRayDistance;
                     wheel.ContactNormal = -suspDown;

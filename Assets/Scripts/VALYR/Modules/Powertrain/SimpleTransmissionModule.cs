@@ -13,56 +13,63 @@ namespace VALYR.Modules.Powertrain
     }
 
     /// <summary>
-    /// Модуль коробки передач и трансмиссии (Simple Transmission Module).
-    /// Поддерживает режимы привода AWD/RWD/FWD, автоматическое переключение передач
-    /// с защитой от частых переключений (anti-hunting), гидротрансформатор / сцепление,
-    /// а также тормозную систему с распределением усилий (Brake Bias) и ручной тормоз.
+    /// Transmission and braking module supporting AWD, RWD, and FWD layouts,
+    /// automatic shifting with cooldown & speed-gating, torque converter lockup,
+    /// and brake balance (bias) distribution.
     /// </summary>
     [Serializable]
     public class SimpleTransmissionModule : VehicleModule, ITransmissionModule
     {
-        [Header("Тип привода")]
+        [Header("Drivetrain Layout")]
+        [Tooltip("Drivetrain drive axle configuration: FWD (Front Wheel Drive), RWD (Rear Wheel Drive), or AWD (All Wheel Drive).")]
         public DrivetrainType Drivetrain = DrivetrainType.FrontWheelDrive;
 
-        [Tooltip("Доля момента на переднюю ось для AWD (0.4 = 40% перед, 60% зад)")]
+        [Tooltip("Front-to-rear torque split for AWD (e.g. 0.50 = 50% front, 50% rear). Only applies when Drivetrain is AllWheelDrive.")]
         [Range(0f, 1f)]
         public float FrontTorqueSplitAwd = 0.50f;
 
-        [Header("Передаточные числа (Solaris 6-АКПП A6GF1)")]
-        [Tooltip("Передаточное число заднего хода (отрицательное число)")]
+        [Header("Gear Ratios")]
+        [Tooltip("Reverse gear ratio (negative value, e.g. -3.487).")]
         public float ReverseGearRatio = -3.487f;
 
-        [Tooltip("Передаточные числа передач вперед (1-я, 2-я, ... 6-я)")]
+        [Tooltip("Forward gear ratios array (1st, 2nd, ... Nth gear).")]
         public float[] ForwardGearRatios = { 3.612f, 2.085f, 1.370f, 1.039f, 0.778f, 0.633f };
 
-        [Tooltip("Главная передача редуктора (Final Drive Ratio)")]
+        [Tooltip("Final drive differential gear reduction ratio (e.g. 3.943). Multiplies each gear ratio.")]
+        [Min(0.5f)]
         public float FinalDriveRatio = 3.943f;
 
-        [Tooltip("Механический КПД трансмиссии (0.85 .. 0.96)")]
+        [Tooltip("Mechanical efficiency of the transmission and driveline (typically 0.88 - 0.94).")]
         [Range(0.7f, 1f)]
         public float TransmissionEfficiency = 0.90f;
 
-        [Header("Автоматическое переключение")]
+        [Header("Automatic Shifting")]
+        [Tooltip("Enable automatic gear shifting.")]
         public bool AutomaticShift = true;
 
-        [Tooltip("Обороты двигателя для переключения вверх (RPM)")]
+        [Tooltip("Engine RPM threshold to initiate an upshift.")]
+        [Range(3000f, 9000f)]
         public float ShiftUpRpm = 5800f;
 
-        [Tooltip("Обороты двигателя для переключения вниз (RPM)")]
+        [Tooltip("Engine RPM threshold to initiate a downshift.")]
+        [Range(1000f, 4000f)]
         public float ShiftDownRpm = 1900f;
 
-        [Tooltip("Длительность разрыва потока мощности при переключении (секунды)")]
+        [Tooltip("Duration of the power interrupt during gear shifting in seconds (0.15 - 0.35s).")]
+        [Range(0.05f, 0.6f)]
         public float ShiftDuration = 0.25f;
 
-        [Header("Тормозная система")]
-        [Tooltip("Максимальный рабочий тормозной момент педали (Нм)")]
+        [Header("Braking System")]
+        [Tooltip("Maximum service brake torque per wheel at 100% brake pedal input (Nm).")]
+        [Min(100f)]
         public float MaxBrakeTorque = 1800f;
 
-        [Tooltip("Баланс тормозных сил (0.72 = 72% перед, 28% зад)")]
+        [Tooltip("Brake force bias distribution (e.g. 0.72 = 72% front axle, 28% rear axle). FWD cars typically run 68-75% front bias.")]
         [Range(0.4f, 0.9f)]
         public float FrontBrakeBias = 0.72f;
 
-        [Tooltip("Максимальный момент стояночного тормоза на заднюю ось (Нм)")]
+        [Tooltip("Maximum parking handbrake torque applied exclusively to the rear axle (Nm).")]
+        [Min(100f)]
         public float MaxHandbrakeTorque = 2400f;
 
         private const float RadPerSecToRpm = 60f / (2f * Mathf.PI);
@@ -90,7 +97,7 @@ namespace VALYR.Modules.Powertrain
                 return;
             }
 
-            // Инициализация нейтрали/1-й передачи при старте
+            // Default gear initialization on start
             if (state.CurrentGear == 0)
             {
                 state.CurrentGear = 1;
@@ -102,13 +109,13 @@ namespace VALYR.Modules.Powertrain
                 _shiftCooldownTimer -= dt;
             }
 
-            // 1. Таймер переключения передачи
+            // 1. Shift duration timer & engine rev-matching
             if (state.ShiftTimer > 0f)
             {
                 state.ShiftTimer -= dt;
                 state.ClutchEngagement = 0.05f;
 
-                // Синхронизация оборотов мотора со следующей передачей (Rev Matching)
+                // Rev-match engine speed to the incoming gear ratio during shift
                 float nextGearRatio = GetGearRatio(state.CurrentGear);
                 float targetGearRpm = Mathf.Abs(GetDrivenWheelsAverageAngularVelocity(in state) * nextGearRatio * FinalDriveRatio) * RadPerSecToRpm;
                 state.EngineRpm = Mathf.Lerp(state.EngineRpm, Mathf.Max(targetGearRpm, 750f), 1f - Mathf.Exp(-14f * dt));
@@ -124,23 +131,23 @@ namespace VALYR.Modules.Powertrain
                 state.ClutchEngagement = 1f;
             }
 
-            // 2. Логика автоматического переключения передач
+            // 2. Automatic gear shifting logic with anti-hunting cooldown
             if (AutomaticShift && state.ShiftTimer <= 0f && _shiftCooldownTimer <= 0f)
             {
                 UpdateAutoShift(in input, ref state, in chassis, dt);
             }
 
-            // 3. Вычисление эффективного передаточного числа
+            // 3. Compute effective total gear ratio
             float currentRatio = GetGearRatio(state.CurrentGear);
             float totalRatio = currentRatio * FinalDriveRatio;
 
-            // 4. Определение тяги и торможения в зависимости от режима (D или R)
+            // 4. Determine drive demand and brake demand depending on mode (Forward vs Reverse)
             float driveDemand;
             float brakeDemand;
 
             if (state.CurrentGear == -1)
             {
-                // Защита от резкого толчка назад при торможении: требуем сначала отпустить педаль тормоза
+                // Safety guard: require releasing the brake pedal after shifting to reverse before backward acceleration starts
                 if (_requireBrakeReleaseForReverse)
                 {
                     if (input.Brake < 0.1f)
@@ -165,7 +172,7 @@ namespace VALYR.Modules.Powertrain
 
             float netDriveTorque = engineOutput.OutputTorque * totalRatio * TransmissionEfficiency * state.ClutchEngagement;
 
-            // Распределение крутящего момента по осям (FL, FR, RL, RR)
+            // Torque distribution by drivetrain type (FL=0, FR=1, RL=2, RR=3)
             float frontRatio;
             float rearRatio;
 
@@ -189,7 +196,7 @@ namespace VALYR.Modules.Powertrain
             float torquePerFrontWheel = (netDriveTorque * frontRatio) * 0.5f;
             float torquePerRearWheel = (netDriveTorque * rearRatio) * 0.5f;
 
-            // Защита от гипер-раскрутки вывешенных колес в воздухе (не быстрее максимальных оборотов передачи)
+            // Airborne wheel overspin protection (do not accelerate wheels faster than redline gear speed)
             float maxWheelOmega = Mathf.Abs(totalRatio) > 0.01f
                 ? (7200f / RadPerSecToRpm) / Mathf.Abs(totalRatio)
                 : 200f;
@@ -199,7 +206,7 @@ namespace VALYR.Modules.Powertrain
             actuation.GetRef(2).DriveTorque += (Mathf.Abs(state.Wheels[2].AngularVelocity) < maxWheelOmega) ? torquePerRearWheel : 0f;  // RL
             actuation.GetRef(3).DriveTorque += (Mathf.Abs(state.Wheels[3].AngularVelocity) < maxWheelOmega) ? torquePerRearWheel : 0f;  // RR
 
-            // 5. Распределение тормозных усилий
+            // 5. Brake torque distribution
             float totalBrakeTorque = brakeDemand * MaxBrakeTorque;
 
             float frontBrakeTorque = (totalBrakeTorque * FrontBrakeBias) * 0.5f;
@@ -210,14 +217,14 @@ namespace VALYR.Modules.Powertrain
             actuation.GetRef(2).BrakeTorque += rearBrakeTorque;
             actuation.GetRef(3).BrakeTorque += rearBrakeTorque;
 
-            // Стояночный тормоз на заднюю ось
+            // Parking handbrake applied to rear axle only
             float handbrakeDemand = Mathf.Clamp01(input.Handbrake);
             float handbrakeTorquePerRearWheel = (handbrakeDemand * MaxHandbrakeTorque) * 0.5f;
 
             actuation.GetRef(2).HandbrakeTorque += handbrakeTorquePerRearWheel;
             actuation.GetRef(3).HandbrakeTorque += handbrakeTorquePerRearWheel;
 
-            // 6. Формирование обратной связи для двигателя
+            // 6. Build feedback for engine
             float drivenWheelsSpeed = GetDrivenWheelsAverageAngularVelocity(in state);
             float drivetrainRpm = Mathf.Abs(drivenWheelsSpeed * totalRatio) * RadPerSecToRpm;
 
@@ -248,7 +255,7 @@ namespace VALYR.Modules.Powertrain
 
             float vehicleGroundSpeed = GetVehicleGroundSpeed(in state, in chassis);
 
-            // Переход на заднюю передачу при осознанном удержании тормоза на ПОЛНОЙ остановке
+            // Shifting into Reverse: Requires deliberate brake hold at full standstill (< 0.15 m/s)
             if (gear >= 1 && vehicleGroundSpeed < 0.15f && input.Brake > 0.6f && input.Throttle < 0.05f)
             {
                 _reverseHoldTimer += dt;
@@ -267,7 +274,7 @@ namespace VALYR.Modules.Powertrain
                 _reverseHoldTimer = 0f;
             }
 
-            // Переход из задней передачи в 1-ю вперед при нажатии газа на остановленной машине
+            // Shifting from Reverse back to 1st gear on throttle press while vehicle is stopped
             if (gear == -1 && input.Throttle > 0.2f && vehicleGroundSpeed < 0.4f)
             {
                 state.CurrentGear = 1;
@@ -276,8 +283,8 @@ namespace VALYR.Modules.Powertrain
                 return;
             }
 
-            // Переключение вперед (1 -> 2 -> ... -> N)
-            // Требует достижения реальной расчетной скорости передачи для предотвращения перескока передач
+            // Upshift (1 -> 2 -> ... -> N):
+            // Gated by realistic physical speed limits for each gear to prevent skipping
             if (gear >= 1 && ForwardGearRatios != null && gear < ForwardGearRatios.Length)
             {
                 float minSpeedForUpshift = GetGearMaxSpeed(gear, in chassis) * 0.78f;
@@ -285,12 +292,12 @@ namespace VALYR.Modules.Powertrain
                 {
                     state.CurrentGear = gear + 1;
                     state.ShiftTimer = ShiftDuration;
-                    _shiftCooldownTimer = 1.0f; // Запрет следующего переключения вверх минимум на 1.0 с
+                    _shiftCooldownTimer = 1.0f; // Prevent multi-gear jump
                     return;
                 }
             }
 
-            // Переключение вниз (N -> ... -> 2 -> 1)
+            // Downshift (N -> ... -> 2 -> 1)
             if (gear > 1)
             {
                 float minSpeedForCurrentGear = GetGearMaxSpeed(gear - 1, in chassis) * 0.65f;
@@ -317,18 +324,18 @@ namespace VALYR.Modules.Powertrain
         {
             if (Drivetrain == DrivetrainType.FrontWheelDrive)
             {
-                // Для переднего привода задние колеса свободно катятся и точно показывают скорость автомобиля
+                // Non-driven rear wheels freely roll and measure true ground speed
                 return (Mathf.Abs(state.Wheels[2].AngularVelocity) * chassis.WheelRadii[2] +
                         Mathf.Abs(state.Wheels[3].AngularVelocity) * chassis.WheelRadii[3]) * 0.5f;
             }
             if (Drivetrain == DrivetrainType.RearWheelDrive)
             {
-                // Для заднего привода передние колеса свободно катятся
+                // Non-driven front wheels freely roll and measure true ground speed
                 return (Mathf.Abs(state.Wheels[0].AngularVelocity) * chassis.WheelRadii[0] +
                         Mathf.Abs(state.Wheels[1].AngularVelocity) * chassis.WheelRadii[1]) * 0.5f;
             }
 
-            // Для AWD берем наименьшую скорость по осям (ось с меньшим срывом)
+            // For AWD, pick the lower speed between axles to avoid wheelspin false readings
             float frontSpeed = (Mathf.Abs(state.Wheels[0].AngularVelocity) * chassis.WheelRadii[0] +
                                 Mathf.Abs(state.Wheels[1].AngularVelocity) * chassis.WheelRadii[1]) * 0.5f;
             float rearSpeed = (Mathf.Abs(state.Wheels[2].AngularVelocity) * chassis.WheelRadii[2] +

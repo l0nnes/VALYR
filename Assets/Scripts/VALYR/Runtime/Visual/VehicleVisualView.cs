@@ -5,35 +5,44 @@ using VALYR.Core;
 namespace VALYR.Runtime.Visual
 {
     /// <summary>
-    /// Слой визуализации колес автомобиля (Visual Presentation Layer).
-    /// Вызывается в Update/LateUpdate для плавного рендеринга без дрожания:
-    /// - Смещает меши колес по вертикали на величину сжатия подвески
-    /// - Поворачивает колеса вокруг вертикальной оси (SteerAngle)
-    /// - Вращает колеса вокруг оси вращения ступицы (RotationAngle)
+    /// Visual presentation layer for vehicle wheel meshes and suspension travel.
+    /// Executed in Update/LateUpdate for silky smooth rendering without physics jitter:
+    /// - Displaces wheel meshes vertically by suspension compression
+    /// - Yaws wheels around vertical axis by SteerAngle
+    /// - Rolls wheels around hub axis by RotationAngle
     /// </summary>
     public class VehicleVisualView : MonoBehaviour
     {
-        [Header("Визуальные меши колес (FL, FR, RL, RR)")]
+        [Header("Wheel Visual Meshes (FL, FR, RL, RR)")]
+        [Tooltip("Front Left wheel mesh transform.")]
         public Transform FrontLeftWheel;
+
+        [Tooltip("Front Right wheel mesh transform.")]
         public Transform FrontRightWheel;
+
+        [Tooltip("Rear Left wheel mesh transform.")]
         public Transform RearLeftWheel;
+
+        [Tooltip("Rear Right wheel mesh transform.")]
         public Transform RearRightWheel;
 
-        [Header("Точки крепления подвески (Anchors)")]
-        [Tooltip("Необязательные родительские точки крепления подвески")]
+        [Header("Suspension Mount Anchors")]
+        [Tooltip("Optional parent suspension anchor transforms.")]
         public Transform FL_SuspensionAnchor;
         public Transform FR_SuspensionAnchor;
         public Transform RL_SuspensionAnchor;
         public Transform RR_SuspensionAnchor;
 
-        [Header("Настройки подвески для визуала")]
-        [Tooltip("Длина подвески в покое (метры, расстояние от точки крепления до оси ступицы)")]
+        [Header("Visual Tuning")]
+        [Tooltip("Suspension rest length in meters (distance from mount point to wheel hub axis).")]
+        [Min(0.05f)]
         public float SuspensionRestLength = 0.345f;
 
-        [Tooltip("Скорость сглаживания вертикального движения колес (0 = мгновенно без сглаживания)")]
+        [Tooltip("Smoothing rate for vertical wheel motion to eliminate visual jitter (1/s, 0 = instant).")]
+        [Range(0f, 60f)]
         public float SuspensionPositionSmoothRate = 25f;
 
-        // Кэшированные начальные локальные позиции
+        // Cached local offsets
         private Vector3[] _baseLocalPositions;
         private Vector3[] _currentLocalPositions;
         private Transform[] _wheels;
@@ -103,7 +112,7 @@ namespace VALYR.Runtime.Visual
         }
 
         /// <summary>
-        /// Обновляет позиции и углы ориентации всех 4 колес на основе текущего состояния симуляции.
+        /// Updates the local position and rotation of all 4 wheel meshes based on vehicle simulation state.
         /// </summary>
         public void UpdateWheelsView(in VehicleState state, float dt)
         {
@@ -115,21 +124,18 @@ namespace VALYR.Runtime.Visual
 
                 WheelState wheelState = state.Wheels[i];
 
-                // 1. Позиция по высоте подвески
+                // 1. Vertical suspension position
                 float compression = wheelState.SuspensionCompression;
                 Vector3 basePos = _baseLocalPositions[i];
 
-                // Если задан Transform анкера подвески, рассчитываем относительно него
                 if (_anchors[i] != null)
                 {
-                    // Анкер в координатах родителя колеса
                     Vector3 anchorPos = wheelTransform.parent.InverseTransformPoint(_anchors[i].position);
                     float targetY = anchorPos.y - (SuspensionRestLength - compression);
                     basePos = new Vector3(anchorPos.x, targetY, anchorPos.z);
                 }
                 else
                 {
-                    // Относительно начальной сохраненной высоты
                     basePos.y = _baseLocalPositions[i].y + compression;
                 }
 
@@ -147,7 +153,7 @@ namespace VALYR.Runtime.Visual
 
                 wheelTransform.localPosition = _currentLocalPositions[i];
 
-                // 2. Вращение колеса (Steering по Y + Roll по X)
+                // 2. Wheel rotation (Steer around Y + Roll around X)
                 float steerDeg = wheelState.SteerAngle * Mathf.Rad2Deg;
                 float rollDeg = wheelState.RotationAngle * Mathf.Rad2Deg;
 
