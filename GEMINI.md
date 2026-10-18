@@ -40,3 +40,29 @@ When creating or editing C# scripts for Unity, follow this strict sequence:
 
 4. **Zero Errors Guarantee**:
    - If any compilation errors or issues are detected, fix them in the code and repeat steps 2 and 3 (compile -> wait -> check) until 0 errors remain before reporting completion to the user.
+
+## 3. Branch Strategy & Core vs Addon Workflow
+The repository strictly adheres to a **single-repo, two-branch** architecture:
+- **`master`**: Core vehicle simulation framework only (Single-player physics, kinematics, telemetry, cameras, inputs, visuals, presets). Zero networking dependencies (no PurrNet, no PurrDiction).
+- **`feat/multiplayer-addon`**: Core + Multiplayer Addon (`VALYR.Multiplayer` assembly, PurrNet, PurrDiction prediction/rollback, kinematic proxy collisions, network entities and lobby).
+
+### Rules for Switching & Editing Branches:
+1. **Core Development**:
+   - Any work on vehicle physics, wheel contact, suspension, powertrain, steering, assists, cameras, or core visuals **MUST be done on `master`**.
+   - Before editing Core, switch to `master` (`git checkout master`).
+   - After committing changes to `master`, push to origin (`git push origin master`).
+
+2. **Propagating Core Updates to Multiplayer Addon**:
+   - Whenever changes are made to `master`, sync them into `feat/multiplayer-addon` using **rebase**:
+     ```bash
+     git checkout feat/multiplayer-addon
+     git rebase master
+     git push origin feat/multiplayer-addon --force-with-lease
+     ```
+   - Never merge `master` into `feat/multiplayer-addon` with merge commits; always keep the multiplayer commits rebased on top of `master`.
+
+3. **Multiplayer Addon Development**:
+   - Any multiplayer-specific logic (network state replication, PurrDiction prediction, network prefabs/lobby, networked doors/lights/interior) **MUST be done on `feat/multiplayer-addon`**.
+   - Do NOT introduce multiplayer dependencies into `VALYR.Core`, `VALYR.Modules`, `VALYR.Runtime`, or `VALYR.Editor`.
+   - Never commit multiplayer-specific scripts, packages, or scene setups to `master`.
+
