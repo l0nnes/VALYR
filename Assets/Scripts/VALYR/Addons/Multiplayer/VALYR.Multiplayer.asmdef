@@ -11,7 +11,12 @@
         "Unity.InputSystem",
         "Unity.Cinemachine",
         "Unity.TextMeshPro",
-        "UnityEngine.UI"
+        "UnityEngine.UI",
+        "GUID:68bd7fdb68ef2684e982e8a9825b18a5",
+        "GUID:d196712d54624fd4bb3382415adc4d60",
+        "GUID:fb5aa70e09e0db742957de215ef97d5b",
+        "GUID:343a628c29ff890428d625f61239778f",
+        "GUID:fa956321508a2aa4da8596c3e41eb158"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -20,6 +25,12 @@
     "precompiledReferences": [],
     "autoReferenced": true,
     "defineConstraints": [],
-    "versionDefines": [],
+    "versionDefines": [
+        {
+            "name": "com.rlabrecque.steamworks.net",
+            "expression": "",
+            "define": "STEAMWORKS"
+        }
+    ],
     "noEngineReferences": false
 }

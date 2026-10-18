@@ -2,38 +2,49 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using PurrNet;
 using PurrNet.Transports;
+using PurrNet.Steam;
+using PurrNet.Lobby;
+#if STEAMWORKS
+using Steamworks;
+using PurrNet.Lobby.Steam;
+#endif
 
 namespace VALYR.Multiplayer
 {
     /// <summary>
-    /// In-game HUD providing connection controls (Host, Join, Disconnect)
-    /// and network status overview directly in SampleScene.
-    /// Toggleable with the TAB key.
+    /// In-game HUD providing Steam session overview, invite triggers,
+    /// and clean return-to-menu functionality inside SampleScene.
+    /// Toggleable with TAB or ESC key.
     /// </summary>
     public class MultiplayerLobbyHUD : MonoBehaviour
     {
         [Header("UI Key Binding")]
         public Key ToggleKey = Key.Tab;
+        public Key AltToggleKey = Key.Escape;
 
-        [Header("Default Connection")]
-        public string ServerAddress = "127.0.0.1";
-        public string ServerPort = "6112";
+        [Header("Direct Connect Fallback (Steam ID)")]
+        [Tooltip("SteamID64 of the host to connect directly if not using Steam Lobby.")]
+        public string TargetSteamId = "";
 
         [Header("Window Layout")]
-        public Rect WindowRect = new Rect(20, 20, 320, 260);
+        public Rect WindowRect = new Rect(24, 24, 340, 290);
 
-        private bool _isOpen;
+        private bool _isOpen = false;
         private GUIStyle _windowStyle;
         private GUIStyle _buttonStyle;
+        private GUIStyle _accentButtonStyle;
         private GUIStyle _labelStyle;
         private GUIStyle _statusStyle;
         private GUIStyle _miniButtonStyle;
 
         private void Update()
         {
-            if (Keyboard.current != null && Keyboard.current[ToggleKey].wasPressedThisFrame)
+            if (Keyboard.current != null)
             {
-                _isOpen = !_isOpen;
+                if (Keyboard.current[ToggleKey].wasPressedThisFrame || Keyboard.current[AltToggleKey].wasPressedThisFrame)
+                {
+                    _isOpen = !_isOpen;
+                }
             }
         }
 
@@ -43,15 +54,22 @@ namespace VALYR.Multiplayer
 
             if (!_isOpen)
             {
-                // Collapsed watermark button
-                if (GUI.Button(new Rect(20, 20, 160, 28), "Multiplayer (TAB)", _miniButtonStyle))
+                // Collapsed indicator button in upper left corner
+                string collapsedLabel = "Multiplayer (TAB)";
+#if STEAMWORKS
+                if (SteamRuntime.isInitialized)
+                {
+                    collapsedLabel = $"Steam: {SteamFriends.GetPersonaName()} (TAB)";
+                }
+#endif
+                if (GUI.Button(new Rect(24, 24, 220, 30), collapsedLabel, _miniButtonStyle))
                 {
                     _isOpen = true;
                 }
                 return;
             }
 
-            WindowRect = GUI.Window(99201, WindowRect, DrawWindowContents, "VALYR Multiplayer (PurrNet)", _windowStyle);
+            WindowRect = GUI.Window(99201, WindowRect, DrawWindowContents, "VALYR Multiplayer (Steam)", _windowStyle);
         }
 
         private void InitStyles()
@@ -67,7 +85,15 @@ namespace VALYR.Multiplayer
             _buttonStyle = new GUIStyle(GUI.skin.button)
             {
                 fontSize = 12,
-                fixedHeight = 28,
+                fixedHeight = 30,
+                margin = new RectOffset(4, 4, 3, 3)
+            };
+
+            _accentButtonStyle = new GUIStyle(GUI.skin.button)
+            {
+                fontSize = 12,
+                fontStyle = FontStyle.Bold,
+                fixedHeight = 32,
                 margin = new RectOffset(4, 4, 3, 3)
             };
 
@@ -79,7 +105,8 @@ namespace VALYR.Multiplayer
 
             _labelStyle = new GUIStyle(GUI.skin.label)
             {
-                fontSize = 12
+                fontSize = 12,
+                wordWrap = true
             };
 
             _statusStyle = new GUIStyle(GUI.skin.label)
@@ -94,31 +121,34 @@ namespace VALYR.Multiplayer
             var net = NetworkManager.main;
             var lobby = MultiplayerLobbyManager.Instance;
 
-            if (net == null)
+#if STEAMWORKS
+            if (SteamRuntime.isInitialized)
             {
-                GUILayout.Label("NetworkManager not found in scene!", _labelStyle);
-                GUI.DragWindow();
-                return;
+                GUILayout.Label($"Steam User: {SteamFriends.GetPersonaName()}", _statusStyle);
             }
+            else
+            {
+                GUILayout.Label("Steam: Not Initialized (Offline)", _labelStyle);
+            }
+#endif
 
-            // Connection State Display
+            // Network Session Status
             string statusText = "Offline (Singleplayer)";
             Color statusColor = Color.gray;
 
-            if (net.isHost)
+            if (net != null)
             {
-                statusText = $"Hosting (Players: {(lobby != null ? lobby.PlayerVehicles.Count : 1)})";
-                statusColor = Color.green;
-            }
-            else if (net.isClient)
-            {
-                statusText = "Connected as Client";
-                statusColor = Color.cyan;
-            }
-            else if (net.isServerOnly)
-            {
-                statusText = "Dedicated Server Running";
-                statusColor = Color.yellow;
+                if (net.isHost)
+                {
+                    int playerCount = lobby != null ? lobby.PlayerVehicles.Count : 1;
+                    statusText = $"Hosting (Players: {playerCount})";
+                    statusColor = Color.green;
+                }
+                else if (net.isClient)
+                {
+                    statusText = "Connected as Client";
+                    statusColor = Color.cyan;
+                }
             }
 
             var prevColor = GUI.color;
@@ -126,90 +156,75 @@ namespace VALYR.Multiplayer
             GUILayout.Label($"Status: {statusText}", _statusStyle);
             GUI.color = prevColor;
 
-            GUILayout.Space(6);
-
-            if (net.isOffline)
+            // Active Lobby Info
+            var activeLobby = GameOrchestrator.active?.activeLobby;
+            if (activeLobby != null)
             {
-                // Offline Lobby Controls
-                GUILayout.BeginHorizontal();
-                GUILayout.Label("IP:", _labelStyle, GUILayout.Width(35));
-                ServerAddress = GUILayout.TextField(ServerAddress);
-                GUILayout.EndHorizontal();
+                GUILayout.Label($"Steam Lobby ID: {activeLobby.id}", _labelStyle);
+            }
 
-                GUILayout.BeginHorizontal();
-                GUILayout.Label("Port:", _labelStyle, GUILayout.Width(35));
-                ServerPort = GUILayout.TextField(ServerPort);
-                GUILayout.EndHorizontal();
+            GUILayout.Space(8);
 
-                GUILayout.Space(8);
-
-                ushort.TryParse(ServerPort, out ushort port);
-                if (port == 0) port = 6112;
-
-                if (GUILayout.Button("Host Game (Server + Driver)", _buttonStyle))
+            // In-Match Controls
+            if (net != null && !net.isOffline)
+            {
+                // Invite Friends via Steam Overlay
+                if (GUILayout.Button("Invite Friends (Steam Overlay)", _accentButtonStyle))
                 {
-                    if (lobby != null)
-                    {
-                        lobby.DefaultAddress = ServerAddress;
-                        lobby.DefaultPort = port;
-                        lobby.StartHost();
-                    }
-                    else
-                    {
-                        net.StartHost();
-                    }
+                    SteamMultiplayerHelper.OpenSteamInviteOverlay();
                 }
 
-                if (GUILayout.Button("Join Game (Client)", _buttonStyle))
-                {
-                    if (lobby != null)
-                    {
-                        lobby.StartClient(ServerAddress, port);
-                    }
-                    else
-                    {
-                        var udp = net.GetComponent<UDPTransport>();
-                        if (udp != null)
-                        {
-                            udp.address = ServerAddress;
-                            udp.serverPort = port;
-                        }
-                        net.StartClient();
-                    }
-                }
+                GUILayout.Space(6);
 
-                if (GUILayout.Button("Start Server Only (Dedicated)", _buttonStyle))
+                // Leave / Disconnect
+                if (GUILayout.Button("Leave to Main Menu", _buttonStyle))
                 {
-                    if (lobby != null)
-                    {
-                        lobby.DefaultPort = port;
-                        lobby.StartServer();
-                    }
-                    else
-                    {
-                        net.StartServer();
-                    }
+                    SteamMultiplayerHelper.LeaveCurrentGameToMenu();
                 }
             }
             else
             {
-                // Active Session Controls
-                if (GUILayout.Button("Disconnect / Stop", _buttonStyle))
+                // Offline fallback (when running SampleScene directly for testing)
+                GUILayout.Label("Direct Steam P2P Connect (Dev):", _labelStyle);
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("Host ID:", _labelStyle, GUILayout.Width(55));
+                TargetSteamId = GUILayout.TextField(TargetSteamId);
+                GUILayout.EndHorizontal();
+
+                GUILayout.Space(4);
+
+                if (GUILayout.Button("Host Game (Steam P2P)", _buttonStyle))
                 {
-                    if (lobby != null)
+                    if (net != null)
                     {
-                        lobby.Disconnect();
+                        var steamTransport = net.GetComponent<SteamTransport>() ?? net.gameObject.AddComponent<SteamTransport>();
+                        net.transport = steamTransport;
+                        steamTransport.peerToPeer = true;
+                        net.StartHost();
                     }
-                    else
+                }
+
+                if (GUILayout.Button("Join by SteamID", _buttonStyle))
+                {
+                    if (net != null && !string.IsNullOrEmpty(TargetSteamId))
                     {
-                        if (net.isServer) net.StopServer();
-                        if (net.isClient) net.StopClient();
+                        var steamTransport = net.GetComponent<SteamTransport>() ?? net.gameObject.AddComponent<SteamTransport>();
+                        net.transport = steamTransport;
+                        steamTransport.peerToPeer = true;
+                        steamTransport.address = TargetSteamId;
+                        net.StartClient();
                     }
                 }
 
                 GUILayout.Space(4);
-                GUILayout.Label("Press TAB to hide / show menu", _labelStyle);
+                if (GUILayout.Button("Open Main Menu Scene", _buttonStyle))
+                {
+                    SteamMultiplayerHelper.LeaveCurrentGameToMenu();
+                }
             }
+
+            GUILayout.Space(6);
+            GUILayout.Label("Press TAB to close this panel", _labelStyle);
 
             GUI.DragWindow();
         }

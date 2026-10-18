@@ -2976,7 +2976,7 @@ GameObject:
   m_Component:
   - component: {fileID: 230790202}
   - component: {fileID: 230790201}
-  - component: {fileID: 230790200}
+  - component: {fileID: 230790203}
   m_Layer: 0
   m_Name: '[NetworkManager]'
   m_TagString: Untagged
@@ -2984,32 +2984,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &230790200
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 230790199}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fc64ff707d914a64e95f2ac0bf554c09, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: PurrNet.Runtime::PurrNet.Transports.UDPTransport
-  _automaticCloudSetups:
-    _adaptToEdgegap: 1
-  _serverPort: 6112
-  _maxConnections: 100
-  _address: 127.0.0.1
-  _timeoutInSeconds: 5
-  _useNativeSockets: 1
-  _networkSimulation:
-    includeInBuild: 0
-    simulateLatency: 0
-    minLatency: 30
-    maxLatency: 100
-    simulatePacketLoss: 0
-    packetLossChance: 10
 --- !u!114 &230790201
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3023,11 +2997,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: PurrNet.Runtime::PurrNet.NetworkManager
   _stopPlayingOnDisconnect: 0
-  _startServerFlags: 9
-  _startClientFlags: 7
+  _startServerFlags: 0
+  _startClientFlags: 0
   _cookieScope: 1
   _dontDestroyOnLoad: 0
-  _transport: {fileID: 230790200}
+  _transport: {fileID: 230790203}
   _networkPrefabs: {fileID: 11400000, guid: 993f964891a3a044ea78b8f9bffd36d7, type: 2}
   _networkAssets: {fileID: 0}
   _networkRules: {fileID: 11400000, guid: b3cc9b883bf37db4c95ae5b62c48ffc7, type: 2}
@@ -3052,6 +3026,24 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &230790203
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 230790199}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ccc454d6a19ac140b15f8d619d0fb5e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PurrNet.Steam.Runtime::PurrNet.Steam.SteamTransport
+  _serverPort: 5003
+  _dedicatedServer: 0
+  _peerToPeer: 1
+  _address: 127.0.0.1
+  _sendRateKiBPerSecond: 256
+  _sendBufferSizeKiB: 512
 --- !u!43 &230814317
 Mesh:
   m_ObjectHideFlags: 0
@@ -15250,8 +15242,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: VALYR.Multiplayer::VALYR.Multiplayer.MultiplayerLobbyHUD
   ToggleKey: 3
-  ServerAddress: 127.0.0.1
-  ServerPort: 6112
+  AltToggleKey: 60
+  TargetSteamId: 
   WindowRect:
     serializedVersion: 2
     x: 20

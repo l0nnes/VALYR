@@ -191,6 +191,15 @@ namespace VALYR.Multiplayer
             var net = NetworkManager.main;
             if (net == null) return;
 
+            var steam = net.GetComponent<PurrNet.Steam.SteamTransport>();
+            if (steam != null)
+            {
+                steam.peerToPeer = true;
+                if (!string.IsNullOrEmpty(address))
+                    steam.address = address;
+                return;
+            }
+
             var udp = net.GetComponent<UDPTransport>();
             if (udp != null)
             {

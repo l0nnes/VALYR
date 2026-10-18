@@ -3,6 +3,7 @@
     "com.baytak.customtoolbar": "https://github.com/FurkanBaytak/unity-baytak-custom-main-toolbar.git#main",
     "com.coplaydev.unity-mcp": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#main",
     "com.dcfa_pixels.debugx": "https://github.com/DCFApixels/Unity-DebugX.git",
+    "com.rlabrecque.steamworks.net": "https://github.com/rlabrecque/Steamworks.NET.git?path=/com.rlabrecque.steamworks.net#2024.8.0",
     "com.unity.ai.navigation": "2.0.15",
     "com.unity.cinemachine": "6.6.0",
     "com.unity.collab-proxy": "2.13.6",
@@ -54,6 +55,9 @@
     "com.unity.modules.vehicles": "1.0.0",
     "com.unity.modules.video": "1.0.0",
     "com.unity.modules.wind": "1.0.0",
-    "com.unity.modules.xr": "1.0.0"
+    "com.unity.modules.xr": "1.0.0",
+    "dev.purrnet.ui": "https://github.com/PurrNet/PurrUI.git?path=Assets/PurrUI#v1.6.0",
+    "dev.purrnet.purrlobby": "https://github.com/PurrNet/PurrLobby.git?path=Assets/PurrLobby#v1.1.0",
+    "dev.purrnet.services": "https://github.com/PurrNet/PurrServices.git?path=Assets/Tool#v1.2.1"
   }
 }
