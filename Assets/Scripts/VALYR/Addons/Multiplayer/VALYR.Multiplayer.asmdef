@@ -1,0 +1,23 @@
+{
+    "name": "VALYR.Multiplayer",
+    "rootNamespace": "VALYR.Multiplayer",
+    "references": [
+        "VALYR.Core",
+        "VALYR.Modules",
+        "VALYR.Runtime",
+        "PurrNet.Runtime",
+        "Unity.InputSystem",
+        "Unity.Cinemachine",
+        "Unity.TextMeshPro",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
