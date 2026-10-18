@@ -5,7 +5,10 @@
   "description": "Vehicle simulation framework for Unity and other engines.",
   "scripts": {
     "release": "semantic-release",
-    "release:dry-run": "semantic-release --dry-run"
+    "release:dry-run": "semantic-release --dry-run",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "devDependencies": {
     "@semantic-release/changelog": "^6.0.3",
@@ -13,6 +16,7 @@
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^11.0.1",
     "@semantic-release/release-notes-generator": "^14.0.3",
-    "semantic-release": "^24.2.8"
+    "semantic-release": "^24.2.8",
+    "vitepress": "^1.6.4"
   }
 }

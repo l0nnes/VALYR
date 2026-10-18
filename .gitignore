@@ -110,3 +110,9 @@ InitTestScene*.unity*
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
 /.idea
 /*.7z
+
+# Node.js and Documentation build artifacts
+node_modules/
+package-lock.json
+docs/.vitepress/dist/
+docs/.vitepress/cache/

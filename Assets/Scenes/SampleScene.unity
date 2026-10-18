@@ -10541,7 +10541,7 @@ MonoBehaviour:
       data:
         ModuleId: Contact.MultiRay
         IsEnabled: 1
-        ContactMode: 1
+        ContactMode: 2
         SurfaceLayers:
           serializedVersion: 2
           m_Bits: 4294967283
@@ -10559,21 +10559,21 @@ MonoBehaviour:
         FrontAxle:
           TargetLength: 0.38
           MinLength: 0.33
-          MaxLength: 0.55
+          MaxLength: 0.45
           SpringStiffness: 32000
           DamperCompressionRate: 3200
           DamperReboundRate: 4500
           BumpStopBuffer: 0.03
-          BumpStopStiffness: 150000
+          BumpStopStiffness: 50000
         RearAxle:
           TargetLength: 0.38
           MinLength: 0.33
-          MaxLength: 0.55
+          MaxLength: 0.45
           SpringStiffness: 28000
           DamperCompressionRate: 2800
           DamperReboundRate: 4000
           BumpStopBuffer: 0.03
-          BumpStopStiffness: 150000
+          BumpStopStiffness: 50000
     - rid: 6796886620113993899
       type: {class: DirectSteeringModule, ns: VALYR.Modules.Steering, asm: VALYR.Modules}
       data:
