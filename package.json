@@ -1,6 +1,6 @@
 {
   "name": "valyr",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Vehicle simulation framework for Unity and other engines.",
   "scripts": {

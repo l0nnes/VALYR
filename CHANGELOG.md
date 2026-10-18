@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/l0nnes/VALYR/compare/v1.0.0...v1.0.1) (2026-10-18)
+
+
+### Bug Fixes
+
+* **ci:** remove cache npm requirement from docs workflow ([3bb8bd9](https://github.com/l0nnes/VALYR/commit/3bb8bd92063a28e25ea9363c9eecf52f45adbccb))
+
 # 1.0.0 (2026-10-18)
 
 
