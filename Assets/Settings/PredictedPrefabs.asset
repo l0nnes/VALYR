@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0fd6605d666f95f479712408e07522e5, type: 3}
+  m_Name: PredictedPrefabs
+  m_EditorClassIdentifier: PurrNet.Prediction::PurrNet.Prediction.PredictedPrefabs
+  autoGenerate: 1
+  poolByDefault: 0
+  _folder: {fileID: 0}
+  searchAllIfNoFolder: 1
+  linkedPredictedPrefabs: []
+  prefabs:
+  - guid: c3569f30e2bdfb843ae6dc54f036089f
+    prefab: {fileID: 2344141437621414101, guid: c3569f30e2bdfb843ae6dc54f036089f, type: 3}
+    pooled: 0
+    warmupCount: 5
+  _prefabs: []
+  _newPrefabs: []

@@ -213,6 +213,10 @@ namespace VALYR.Multiplayer
 
                 SceneVehicle.AssignedPlayerId = player;
                 SceneVehicle.GiveOwnership(player);
+                if (SceneVehicle.TryGetComponent<PredictedVehicle>(out var predVeh))
+                {
+                    predVeh.owner = player;
+                }
                 _playerVehicles[player] = SceneVehicle;
                 SceneVehicle.RebindCinemachineCameras();
                 return;
@@ -225,6 +229,10 @@ namespace VALYR.Multiplayer
                 {
                     SceneVehicle.AssignedPlayerId = player;
                     SceneVehicle.GiveOwnership(player);
+                    if (SceneVehicle.TryGetComponent<PredictedVehicle>(out var predVeh))
+                    {
+                        predVeh.owner = player;
+                    }
                     _playerVehicles[player] = SceneVehicle;
                 }
                 return;
@@ -234,11 +242,28 @@ namespace VALYR.Multiplayer
             Vector3 pos = spawn != null ? spawn.position : new Vector3((_spawnCounter * 4.5f), 0.6f, 0f);
             Quaternion rot = spawn != null ? spawn.rotation : Quaternion.identity;
 
+            var predMgr = FindAnyObjectByType<PurrNet.Prediction.PredictionManager>();
+            if (predMgr != null && predMgr.hierarchy != null)
+            {
+                if (predMgr.hierarchy.TryCreateAndGet<NetworkVehicle>(VehiclePrefab.gameObject, pos, rot, out var predictedCar, player))
+                {
+                    predictedCar.name = $"NetworkTruck_Player_{player.id}";
+                    predictedCar.AssignedPlayerId = player;
+                    _playerVehicles[player] = predictedCar;
+
+                    if (net.isHost && _playerVehicles.TryGetValue(net.localPlayer, out var hostCar) && hostCar != null)
+                    {
+                        hostCar.RebindCinemachineCameras();
+                    }
+                    return;
+                }
+            }
+
+            // Fallback to standard PurrNet Instantiate & Spawn
             NetworkVehicle newCar = Instantiate(VehiclePrefab, pos, rot);
             newCar.name = $"NetworkTruck_Player_{player.id}";
             newCar.AssignedPlayerId = player;
 
-            // Register and spawn with PurrNet NetworkManager before granting ownership
             if (!newCar.isSpawned)
             {
                 net.Spawn(newCar.gameObject);
@@ -248,9 +273,9 @@ namespace VALYR.Multiplayer
             _playerVehicles[player] = newCar;
 
             // If this is host, guarantee that Host camera rig remains focused on the Host vehicle
-            if (net.isHost && _playerVehicles.TryGetValue(net.localPlayer, out var hostCar) && hostCar != null)
+            if (net.isHost && _playerVehicles.TryGetValue(net.localPlayer, out var currentHostCar) && currentHostCar != null)
             {
-                hostCar.RebindCinemachineCameras();
+                currentHostCar.RebindCinemachineCameras();
             }
         }
 
@@ -263,7 +288,15 @@ namespace VALYR.Multiplayer
             {
                 if (vehicle != null && vehicle != SceneVehicle)
                 {
-                    Destroy(vehicle.gameObject);
+                    var predMgr = FindAnyObjectByType<PurrNet.Prediction.PredictionManager>();
+                    if (predMgr != null && predMgr.hierarchy != null && predMgr.hierarchy.TryGetId(vehicle.gameObject, out var pid))
+                    {
+                        predMgr.hierarchy.Delete(pid);
+                    }
+                    else
+                    {
+                        Destroy(vehicle.gameObject);
+                    }
                 }
                 _playerVehicles.Remove(player);
             }

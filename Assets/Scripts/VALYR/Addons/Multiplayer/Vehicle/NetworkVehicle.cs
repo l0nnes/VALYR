@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
@@ -16,50 +15,28 @@ namespace VALYR.Multiplayer
 {
     /// <summary>
     /// Base multiplayer adapter for VALYR vehicles over PurrNet.
-    /// Strictly responsible for core functionality:
-    /// - Kinematic remote proxy + dynamic local vehicle physics ensuring zero-penetration collisions
-    /// - Network collision impulse transfer (Arctic Drive pattern) so rammed vehicles react with full physical forces
-    /// - Client-owner authority management and input isolation
+    /// Strictly responsible for:
+    /// - PurrNet identity and client-owner authority management
     /// - Cinemachine camera rig binding (all 5 camera slots with C key switching)
-    /// - Silky-smooth wheel visuals (independent per-wheel angular velocity roll integration and smooth steer angle lerp)
-    /// 
-    /// Visual addons (doors, lights, interior controls & dashboard) are managed by dedicated
-    /// modular components: NetworkVehicleDoors, NetworkVehicleLights, NetworkVehicleInterior.
+    /// - Synchronization adapter for vehicle sub-addons (doors, lights, interior controls)
+    /// - Coordinating with PredictedVehicle for client-side prediction and collision physics
     /// </summary>
-    [RequireComponent(typeof(NetworkRigidbody))]
     [RequireComponent(typeof(VehicleController))]
     public class NetworkVehicle : NetworkBehaviour
     {
-        [Header("PurrNet State Replication")]
-        [Tooltip("Owner-authoritative synchronized driving and wheel visuals state.")]
-        [SerializeField]
-        private SyncVar<VehicleNetworkState> _networkState = new(default, 0.02f, ownerAuth: true);
-
         // Cached vehicle components
         private VehicleController _controller;
         private VehicleInputReader _inputReader;
         private VehicleCameraController _cameraController;
         private VehicleTelemetryHUD _telemetryHUD;
         private VehicleVisualView _visualView;
-        private NetworkRigidbody _networkRigidbody;
+        private PredictedVehicle _predictedVehicle;
         private Rigidbody _rigidbody;
 
         // Modular addon components
         private NetworkVehicleDoors _netDoors;
         private NetworkVehicleLights _netLights;
         private NetworkVehicleInterior _netInterior;
-
-        // Smooth wheel visual interpolation for remote proxies
-        private float _smoothedSteerAngle;
-        private float _proxyWheelRoll0;
-        private float _proxyWheelRoll1;
-        private float _proxyWheelRoll2;
-        private float _proxyWheelRoll3;
-
-        // Collision cooldown to prevent multiple impulse spam and double-hit ping-ponging
-        private float _lastCollisionTime;
-        private float _lastImpulseReceivedTime;
-        private const float CollisionCooldown = 0.25f;
 
         private static readonly FieldInfo CameraSlotsField =
             typeof(VehicleCameraController).GetField("_cameraSlots", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -93,7 +70,38 @@ namespace VALYR.Multiplayer
             }
         }
 
-        public VehicleNetworkState SyncedState => _networkState.value;
+        /// <summary>
+        /// Live state provider used by sub-addons (lights, interior dashboard, doors).
+        /// Reads directly from PredictedVehicle's current predicted/reconciled simulation state.
+        /// </summary>
+        public VehicleNetworkState SyncedState
+        {
+            get
+            {
+                VehicleState s = _predictedVehicle != null ? _predictedVehicle.currentState.CoreState : (_controller != null ? _controller.State : default);
+                Vector3 vel = _rigidbody != null ? _rigidbody.linearVelocity : Vector3.zero;
+                float speedKmh = Vector3.Dot(vel, transform.forward) * 3.6f;
+
+                return new VehicleNetworkState
+                {
+                    EngineRpm = s.EngineRpm,
+                    CurrentGear = s.CurrentGear,
+                    SteerAngle = s.Wheels[0].SteerAngle,
+                    ForwardSpeed = speedKmh,
+                    SuspLength0 = s.Wheels[0].SuspensionLength,
+                    SuspLength1 = s.Wheels[1].SuspensionLength,
+                    SuspLength2 = s.Wheels[2].SuspensionLength,
+                    SuspLength3 = s.Wheels[3].SuspensionLength,
+                    WheelOmega0 = s.Wheels[0].AngularVelocity,
+                    WheelOmega1 = s.Wheels[1].AngularVelocity,
+                    WheelOmega2 = s.Wheels[2].AngularVelocity,
+                    WheelOmega3 = s.Wheels[3].AngularVelocity,
+                    IsBraking = _controller != null && (_controller.Input.Brake > 0.05f || (s.CurrentGear == -1 && _controller.Input.Throttle > 0.05f)),
+                    IsHandbraking = _controller != null && _controller.Input.Handbrake > 0.5f,
+                    IsReversing = s.CurrentGear < 0
+                };
+            }
+        }
 
         private void Awake()
         {
@@ -108,7 +116,7 @@ namespace VALYR.Multiplayer
             if (_cameraController == null) _cameraController = GetComponent<VehicleCameraController>();
             if (_telemetryHUD == null) _telemetryHUD = GetComponent<VehicleTelemetryHUD>();
             if (_visualView == null) _visualView = GetComponent<VehicleVisualView>();
-            if (_networkRigidbody == null) _networkRigidbody = GetComponent<NetworkRigidbody>();
+            if (_predictedVehicle == null) _predictedVehicle = GetComponent<PredictedVehicle>();
             if (_rigidbody == null) _rigidbody = GetComponent<Rigidbody>();
 
             if (_netDoors == null) _netDoors = GetComponent<NetworkVehicleDoors>();
@@ -162,10 +170,17 @@ namespace VALYR.Multiplayer
             EnsureComponentsCached();
             bool localControl = IsLocallyControlled;
 
-            // 1. Vehicle driving physics & input
-            if (_controller != null)
-                _controller.enabled = localControl;
+            // Sync ownership with PredictedVehicle
+            if (_predictedVehicle != null)
+            {
+                PlayerID? targetOwner = AssignedPlayerId.HasValue ? AssignedPlayerId : (isSpawned ? owner : null);
+                if (targetOwner.HasValue && _predictedVehicle.owner != targetOwner)
+                {
+                    _predictedVehicle.owner = targetOwner;
+                }
+            }
 
+            // Input reader
             if (_inputReader != null)
             {
                 if (!localControl)
@@ -186,7 +201,7 @@ namespace VALYR.Multiplayer
                 }
             }
 
-            // 2. Camera controller & Cinemachine bindings
+            // Camera controller & Cinemachine bindings
             if (_cameraController != null)
             {
                 if (!localControl)
@@ -200,32 +215,11 @@ namespace VALYR.Multiplayer
                 }
             }
 
-            // 3. UI HUD
+            // UI HUD
             if (_telemetryHUD != null)
                 _telemetryHUD.enabled = localControl;
 
-            // 4. Rigidbody physics configuration (Kinematic Proxy Pattern)
-            if (_rigidbody != null)
-            {
-                _rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
-
-                if (localControl)
-                {
-                    // Local driver: full dynamic PhysX simulation with gravity and raycast suspension
-                    _rigidbody.isKinematic = false;
-                    _rigidbody.useGravity = true;
-                }
-                else
-                {
-                    // Remote proxy: KINEMATIC!
-                    // Completely prevents collider interpenetration, eliminates PhysX/Network spring fighting,
-                    // and provides an impenetrable, solid physical obstacle for local dynamic vehicles.
-                    _rigidbody.isKinematic = true;
-                    _rigidbody.useGravity = false;
-                }
-            }
-
-            // 5. Notify modular addon components of authority changes
+            // Sub-addon components
             if (_netDoors != null) _netDoors.UpdateAuthorityState();
             if (_netLights != null) _netLights.IsolateLightControllerInput();
             if (_netInterior != null) _netInterior.UpdateAuthorityState();
@@ -237,200 +231,21 @@ namespace VALYR.Multiplayer
             field?.SetValue(target, value);
         }
 
-        private void FixedUpdate()
-        {
-            // Owner writes local physics simulation snapshot to SyncVar
-            if (isSpawned && isOwner && _controller != null)
-            {
-                VehicleState state = _controller.State;
-                VehicleInput input = _controller.Input;
-
-                Vector3 vel = _rigidbody != null ? _rigidbody.linearVelocity : Vector3.zero;
-                float forwardSpeed = Vector3.Dot(vel, transform.forward);
-
-                var net = new VehicleNetworkState
-                {
-                    EngineRpm = state.EngineRpm,
-                    CurrentGear = state.CurrentGear,
-                    SteerAngle = state.Wheels[0].SteerAngle,
-                    ForwardSpeed = forwardSpeed,
-                    SuspLength0 = state.Wheels[0].SuspensionLength,
-                    SuspLength1 = state.Wheels[1].SuspensionLength,
-                    SuspLength2 = state.Wheels[2].SuspensionLength,
-                    SuspLength3 = state.Wheels[3].SuspensionLength,
-                    WheelOmega0 = state.Wheels[0].AngularVelocity,
-                    WheelOmega1 = state.Wheels[1].AngularVelocity,
-                    WheelOmega2 = state.Wheels[2].AngularVelocity,
-                    WheelOmega3 = state.Wheels[3].AngularVelocity,
-                    IsBraking = input.Brake > 0.05f || (state.CurrentGear == -1 && input.Throttle > 0.05f),
-                    IsHandbraking = input.Handbrake > 0.5f,
-                    IsReversing = state.CurrentGear < 0
-                };
-
-                _networkState.value = net;
-            }
-            else if (!IsLocallyControlled && _rigidbody != null)
-            {
-                // Enforce kinematic state on proxies if NetworkRigidbody received sync settings
-                if (!_rigidbody.isKinematic)
-                {
-                    _rigidbody.isKinematic = true;
-                    _rigidbody.useGravity = false;
-                }
-            }
-        }
-
         private void Update()
         {
-            // 1. Direct keyboard fallback for local driver
+            // Direct camera switching fallback for local driver (C key)
             if (IsLocallyControlled)
             {
                 var kb = UnityEngine.InputSystem.Keyboard.current;
                 if (kb != null)
                 {
-                    // Camera switching (C key)
                     if (kb.cKey.wasPressedThisFrame && _cameraController != null && _cameraController.enabled)
                     {
                         _cameraController.CycleNextCamera();
                     }
                 }
             }
-
-            // 2. Remote proxy: render silky-smooth wheel visuals
-            if (isSpawned && !isOwner)
-            {
-                float dt = Time.deltaTime;
-                VehicleNetworkState net = _networkState.value;
-
-                // Smooth steer angle exponential interpolation
-                _smoothedSteerAngle = Mathf.Lerp(_smoothedSteerAngle, net.SteerAngle, 1f - Mathf.Exp(-22f * dt));
-
-                // Continuous per-wheel roll integration using exact physical angular velocity
-                // Accurately locks rear wheels on handbrake, locks wheels under heavy braking, and spins on burnouts
-                _proxyWheelRoll0 += net.WheelOmega0 * dt;
-                _proxyWheelRoll1 += net.WheelOmega1 * dt;
-                _proxyWheelRoll2 += net.WheelOmega2 * dt;
-                _proxyWheelRoll3 += net.WheelOmega3 * dt;
-
-                _proxyWheelRoll0 = Mathf.Repeat(_proxyWheelRoll0, Mathf.PI * 2f);
-                _proxyWheelRoll1 = Mathf.Repeat(_proxyWheelRoll1, Mathf.PI * 2f);
-                _proxyWheelRoll2 = Mathf.Repeat(_proxyWheelRoll2, Mathf.PI * 2f);
-                _proxyWheelRoll3 = Mathf.Repeat(_proxyWheelRoll3, Mathf.PI * 2f);
-
-                if (_visualView != null)
-                {
-                    VehicleState proxyState = default;
-                    proxyState.EngineRpm = net.EngineRpm;
-                    proxyState.CurrentGear = net.CurrentGear;
-
-                    proxyState.Wheels.FL.SteerAngle = _smoothedSteerAngle;
-                    proxyState.Wheels.FR.SteerAngle = _smoothedSteerAngle;
-                    proxyState.Wheels.RL.SteerAngle = 0f;
-                    proxyState.Wheels.RR.SteerAngle = 0f;
-
-                    // Fallback to nominal suspension length (0.38f) if not yet received
-                    proxyState.Wheels.FL.SuspensionLength = net.SuspLength0 > 0.001f ? net.SuspLength0 : 0.38f;
-                    proxyState.Wheels.FR.SuspensionLength = net.SuspLength1 > 0.001f ? net.SuspLength1 : 0.38f;
-                    proxyState.Wheels.RL.SuspensionLength = net.SuspLength2 > 0.001f ? net.SuspLength2 : 0.38f;
-                    proxyState.Wheels.RR.SuspensionLength = net.SuspLength3 > 0.001f ? net.SuspLength3 : 0.38f;
-
-                    proxyState.Wheels.FL.RotationAngle = _proxyWheelRoll0;
-                    proxyState.Wheels.FR.RotationAngle = _proxyWheelRoll1;
-                    proxyState.Wheels.RL.RotationAngle = _proxyWheelRoll2;
-                    proxyState.Wheels.RR.RotationAngle = _proxyWheelRoll3;
-
-                    _visualView.UpdateWheelsView(in proxyState, dt);
-                }
-            }
         }
-
-        #region Collision & Impulse Transfer (Arctic Drive Pattern)
-
-        private void OnCollisionEnter(Collision collision)
-        {
-            // Only the locally controlled dynamic vehicle detects and transmits impact impulses
-            if (!IsLocallyControlled || _rigidbody == null || _rigidbody.isKinematic)
-                return;
-
-            // Debounce collision events so we don't spam multiple impulses in quick succession
-            if (Time.time - _lastCollisionTime < CollisionCooldown)
-                return;
-
-            // Prevent ping-pong double impulses if we were recently struck by another vehicle
-            if (Time.time - _lastImpulseReceivedTime < CollisionCooldown)
-                return;
-
-            var otherNet = collision.collider.GetComponentInParent<NetworkVehicle>();
-            if (otherNet == null || otherNet == this || otherNet.IsLocallyControlled)
-                return;
-
-            float impactSpeed = collision.relativeVelocity.magnitude;
-            if (impactSpeed < 1.0f)
-                return;
-
-            _lastCollisionTime = Time.time;
-
-            ContactPoint contact = collision.GetContact(0);
-
-            // Calculate horizontal collision direction (XZ plane) to prevent launching into the air
-            Vector3 horizontalNormal = new Vector3(contact.normal.x, 0f, contact.normal.z);
-            if (horizontalNormal.sqrMagnitude > 0.001f)
-            {
-                horizontalNormal.Normalize();
-            }
-            else
-            {
-                // Fallback to relative velocity direction if contact normal is purely vertical
-                Vector3 relVelH = new Vector3(collision.relativeVelocity.x, 0f, collision.relativeVelocity.z);
-                horizontalNormal = relVelH.sqrMagnitude > 0.001f ? -relVelH.normalized : -transform.forward;
-            }
-
-            // Inelastic vehicle impact impulse: ~0.35 * mass * relative speed
-            // For 1750kg at 15 m/s (~54 km/h), this is ~9,180 N*s (approx 5.2 m/s delta-v),
-            // producing a firm, heavy truck impact without ragdoll launching.
-            float impulseMagnitude = impactSpeed * _rigidbody.mass * 0.35f;
-            Vector3 impulse = -horizontalNormal * impulseMagnitude;
-
-            // Zero vertical force entirely to keep wheels firmly grounded
-            impulse.y = 0f;
-
-            // Project application point to Center of Mass height to prevent pitch/roll flips while preserving realistic yaw spin
-            Vector3 appPoint = new Vector3(contact.point.x, _rigidbody.worldCenterOfMass.y, contact.point.z);
-            Vector3 toPoint = appPoint - _rigidbody.worldCenterOfMass;
-            toPoint = Vector3.ClampMagnitude(toPoint, 1.2f);
-            appPoint = _rigidbody.worldCenterOfMass + toPoint;
-
-            // Send impact impulse over network to the owner of the other vehicle
-            otherNet.SendCollisionImpulse(impulse, appPoint);
-        }
-
-        /// <summary>
-        /// Sends an impact impulse to the owner of this vehicle via network RPC.
-        /// </summary>
-        public void SendCollisionImpulse(Vector3 impulse, Vector3 point)
-        {
-            RequestImpactImpulseServerRpc(impulse, point);
-        }
-
-        [ServerRpc(requireOwnership: false)]
-        private void RequestImpactImpulseServerRpc(Vector3 impulse, Vector3 point)
-        {
-            ApplyImpactImpulseObserversRpc(impulse, point);
-        }
-
-        [ObserversRpc]
-        private void ApplyImpactImpulseObserversRpc(Vector3 impulse, Vector3 point)
-        {
-            // Only the dynamic owner executes the physical impact force
-            if (IsLocallyControlled && _rigidbody != null && !_rigidbody.isKinematic)
-            {
-                _lastImpulseReceivedTime = Time.time;
-                _lastCollisionTime = Time.time;
-                _rigidbody.AddForceAtPosition(impulse, point, ForceMode.Impulse);
-            }
-        }
-
-        #endregion
 
         /// <summary>
         /// Binds scene Cinemachine cameras to follow this vehicle for the local player,

@@ -12,7 +12,7 @@ namespace VALYR.Multiplayer
     /// Bit-packed with zero memory allocations using PurrNet IPackedAuto.
     /// </summary>
     [Serializable]
-    public struct VehicleLightsNetworkData : IPackedAuto
+    public struct VehicleLightsNetworkData : IPackedAuto, IPacked
     {
         public byte HeadlightMode;   // 0=Off, 1=LowBeam, 2=HighBeam
         public bool IsLeftTurn;
@@ -21,6 +21,28 @@ namespace VALYR.Multiplayer
         public bool IsBraking;
         public bool IsReversing;
         public bool IsHandbraking;
+
+        public void Write(BitPacker packer)
+        {
+            packer.WriteBits(HeadlightMode, 8);
+            packer.WriteBit(IsLeftTurn);
+            packer.WriteBit(IsRightTurn);
+            packer.WriteBit(IsHazard);
+            packer.WriteBit(IsBraking);
+            packer.WriteBit(IsReversing);
+            packer.WriteBit(IsHandbraking);
+        }
+
+        public void Read(BitPacker packer)
+        {
+            HeadlightMode = (byte)packer.ReadBits(8);
+            IsLeftTurn = packer.ReadBit();
+            IsRightTurn = packer.ReadBit();
+            IsHazard = packer.ReadBit();
+            IsBraking = packer.ReadBit();
+            IsReversing = packer.ReadBit();
+            IsHandbraking = packer.ReadBit();
+        }
     }
 
     /// <summary>

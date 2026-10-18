@@ -2411,11 +2411,13 @@ GameObject:
   - component: {fileID: 536434701821389810}
   - component: {fileID: 9133813512377376695}
   - component: {fileID: 1186247575251079717}
-  - component: {fileID: 766774808846143588}
   - component: {fileID: 7242971327080911299}
   - component: {fileID: 3928272573034743336}
   - component: {fileID: 7792432453920262239}
   - component: {fileID: 8506903820311202588}
+  - component: {fileID: 5955685118342116918}
+  - component: {fileID: 8305835251514692734}
+  - component: {fileID: 6156848399304488289}
   m_Layer: 3
   m_Name: NetworkTruck
   m_TagString: Untagged
@@ -3096,56 +3098,6 @@ MonoBehaviour:
   _autoHoldColor: {r: 0.1, g: 1, b: 0.45, a: 1}
   _reverseColor: {r: 1, g: 0.55, b: 0.15, a: 1}
   _neutralColor: {r: 0.85, g: 0.85, b: 0.85, a: 1}
---- !u!114 &766774808846143588
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2344141437621414101}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d497b70c6fb6adc46b663609bee66dfd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: PurrNet.Runtime::PurrNet.NetworkRigidbody
-  _networkRules: {fileID: 0}
-  _visitiblityRules: {fileID: 0}
-  _isSetup: 0
-  _prefabId: -2147483648
-  _hasPrefabScope: 0
-  _prefabScope: 0
-  _componentIndex: -2147483648
-  _shouldBePooled: 0
-  _parent: {fileID: 0}
-  _invertedPathToNearestParent: 
-  _directChildren: []
-  _debugGizmos: 0
-  _debugTextOffset: 2
-  _ownerAuth: 1
-  _space: 0
-  _syncParent: 1
-  _syncVelocityRelativeToParent: 1
-  _useParentFramePositionError: 0
-  _interpolationDelay: 0.02
-  _autoInterpolationDelay: 1
-  _predictionFactor: 1
-  _maxExtrapolationDuration: 0.25
-  _positionStrength: 5
-  _correctionRange: 2
-  _rotationCorrection: 0
-  _rotationStrength: 12
-  _hardSnapDistance: 3
-  _resetLinearVelocityOnSnap: 0
-  _hardSnapAngle: 120
-  _resetAngularVelocityOnSnap: 0
-  _acceptableRotationError: 1
-  _stallRecoveryDelay: 0.25
-  _settledSnapPositionError: 0.01
-  _hardSnapOnStall: 0
-  _positionChangeThreshold: 0.001
-  _rotationChangeThreshold: 0.001
-  _velocityStopThreshold: 0.001
-  _settingsOverride: {fileID: 11400000, guid: b6e648922489cc344acb31657f91e618, type: 2}
 --- !u!114 &7242971327080911299
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3169,42 +3121,6 @@ MonoBehaviour:
   _parent: {fileID: 0}
   _invertedPathToNearestParent: 
   _directChildren: []
-  _networkState:
-    _value:
-      EngineRpm: 0
-      CurrentGear: 0
-      SteerAngle: 0
-      ForwardSpeed: 0
-      SuspLength0: 0
-      SuspLength1: 0
-      SuspLength2: 0
-      SuspLength3: 0
-      WheelOmega0: 0
-      WheelOmega1: 0
-      WheelOmega2: 0
-      WheelOmega3: 0
-      IsBraking: 0
-      IsHandbraking: 0
-      IsReversing: 0
-    _ownerAuth: 1
-    _ownerOnly: 0
-    _sendIntervalInSeconds: 0.033
-    _initialValue:
-      EngineRpm: 0
-      CurrentGear: 0
-      SteerAngle: 0
-      ForwardSpeed: 0
-      SuspLength0: 0
-      SuspLength1: 0
-      SuspLength2: 0
-      SuspLength3: 0
-      WheelOmega0: 0
-      WheelOmega1: 0
-      WheelOmega2: 0
-      WheelOmega3: 0
-      IsBraking: 0
-      IsHandbraking: 0
-      IsReversing: 0
 --- !u!114 &3928272573034743336
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3300,6 +3216,136 @@ MonoBehaviour:
   _parent: {fileID: 0}
   _invertedPathToNearestParent: 
   _directChildren: []
+--- !u!114 &5955685118342116918
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2344141437621414101}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 98dbb08343eac044895b9b52872bcb49, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PurrNet.Prediction::PurrNet.Prediction.PredictedTransform
+  _predictionPolicySource: 0
+  _predictionPolicy: 0
+  _graphics: {fileID: 0}
+  _floatAccuracy: 1
+  _interpolationSettings: {fileID: 11400000, guid: 4a8aa8e44e23cfd4a8d4387ef3f36173, type: 2}
+  _unparentGraphics: 0
+  _characterControllerPatch: 1
+  _softCorrection:
+    correctionRate: 8
+    snapPositionThreshold: 3
+    snapRotationThreshold: 75
+--- !u!114 &8305835251514692734
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2344141437621414101}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 939517533de889a4f948d4e2041fb798, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PurrNet.Prediction::PurrNet.Prediction.PredictedRigidbody
+  _predictionPolicySource: 0
+  _predictionPolicy: 0
+  _softVelocityCorrectionRate: 8
+  _rigidbody: {fileID: 8252840065216676053}
+  _floatAccuracy: 1
+  _eventMask: 27
+  _ignoreTriggerOnTrigger: 0
+--- !u!114 &6156848399304488289
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2344141437621414101}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9b82d2bca75d3a64992fd1021b686e67, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: VALYR.Multiplayer::VALYR.Multiplayer.PredictedVehicle
+  _predictionPolicySource: 0
+  _predictionPolicy: 0
+  viewState:
+    CoreState:
+      Tick: 0
+      EngineRpm: 0
+      CurrentGear: 0
+      ClutchEngagement: 0
+      ShiftTimer: 0
+      Wheels:
+        FL:
+          AngularVelocity: 0
+          RotationAngle: 0
+          SteerAngle: 0
+          HasContact: 0
+          ContactPoint: {x: 0, y: 0, z: 0}
+          ContactNormal: {x: 0, y: 0, z: 0}
+          SuspensionLength: 0
+          SuspensionCompression: 0
+          SuspensionVelocity: 0
+          NormalLoad: 0
+          SurfaceVelocity: {x: 0, y: 0, z: 0}
+          SlipRatio: 0
+          SlipAngle: 0
+          TireForce: {x: 0, y: 0, z: 0}
+          SkidIntensity: 0
+        FR:
+          AngularVelocity: 0
+          RotationAngle: 0
+          SteerAngle: 0
+          HasContact: 0
+          ContactPoint: {x: 0, y: 0, z: 0}
+          ContactNormal: {x: 0, y: 0, z: 0}
+          SuspensionLength: 0
+          SuspensionCompression: 0
+          SuspensionVelocity: 0
+          NormalLoad: 0
+          SurfaceVelocity: {x: 0, y: 0, z: 0}
+          SlipRatio: 0
+          SlipAngle: 0
+          TireForce: {x: 0, y: 0, z: 0}
+          SkidIntensity: 0
+        RL:
+          AngularVelocity: 0
+          RotationAngle: 0
+          SteerAngle: 0
+          HasContact: 0
+          ContactPoint: {x: 0, y: 0, z: 0}
+          ContactNormal: {x: 0, y: 0, z: 0}
+          SuspensionLength: 0
+          SuspensionCompression: 0
+          SuspensionVelocity: 0
+          NormalLoad: 0
+          SurfaceVelocity: {x: 0, y: 0, z: 0}
+          SlipRatio: 0
+          SlipAngle: 0
+          TireForce: {x: 0, y: 0, z: 0}
+          SkidIntensity: 0
+        RR:
+          AngularVelocity: 0
+          RotationAngle: 0
+          SteerAngle: 0
+          HasContact: 0
+          ContactPoint: {x: 0, y: 0, z: 0}
+          ContactNormal: {x: 0, y: 0, z: 0}
+          SuspensionLength: 0
+          SuspensionCompression: 0
+          SuspensionVelocity: 0
+          NormalLoad: 0
+          SurfaceVelocity: {x: 0, y: 0, z: 0}
+          SlipRatio: 0
+          SlipAngle: 0
+          TireForce: {x: 0, y: 0, z: 0}
+          SkidIntensity: 0
+  _repeatInputFactor: 0.8
+  _extrapolateInput: 1
 --- !u!1 &2446260437280071161
 GameObject:
   m_ObjectHideFlags: 0

@@ -6,6 +6,8 @@
         "VALYR.Modules",
         "VALYR.Runtime",
         "PurrNet.Runtime",
+        "PurrNet.Prediction",
+        "PurrNet.Prediction.Prebuilt",
         "Unity.InputSystem",
         "Unity.Cinemachine",
         "Unity.TextMeshPro",

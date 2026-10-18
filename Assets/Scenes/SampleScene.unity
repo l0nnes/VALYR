@@ -3005,10 +3005,10 @@ MonoBehaviour:
   _useNativeSockets: 1
   _networkSimulation:
     includeInBuild: 0
-    simulateLatency: 0
+    simulateLatency: 1
     minLatency: 30
     maxLatency: 100
-    simulatePacketLoss: 0
+    simulatePacketLoss: 1
     packetLossChance: 10
 --- !u!114 &230790201
 MonoBehaviour:
@@ -15105,6 +15105,71 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1124535773}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &1181164196
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1181164198}
+  - component: {fileID: 1181164197}
+  m_Layer: 0
+  m_Name: '[PredictionManager]'
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1181164197
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1181164196}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0112282cee605384cb1835dbd2b236de, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PurrNet.Prediction::PurrNet.Prediction.PredictionManager
+  _networkRules: {fileID: 0}
+  _visitiblityRules: {fileID: 0}
+  _isSetup: 0
+  _prefabId: -2147483648
+  _hasPrefabScope: 0
+  _prefabScope: 0
+  _componentIndex: -2147483648
+  _shouldBePooled: 0
+  _parent: {fileID: 0}
+  _invertedPathToNearestParent: 
+  _directChildren: []
+  _physicsProvider: 1
+  _updateViewMode: 1
+  _builtInSystems: 63
+  _predictedPrefabs: {fileID: 11400000, guid: eeabffeb8d0d5b3428f7debcc95d27c8, type: 2}
+  _extrapolateMissingInputs: 1
+  _serverUpdateRate: 0
+  _maxLagCompensationSeconds: 0.15
+  _forwardViewOffsets: 1
+  _desyncPolicy: 0
+  _desyncCheckIntervalSeconds: 0.25
+--- !u!4 &1181164198
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1181164196}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1238737635
 GameObject:
   m_ObjectHideFlags: 0
@@ -31260,3 +31325,4 @@ SceneRoots:
   - {fileID: 1238737637}
   - {fileID: 230790202}
   - {fileID: 1248955395}
+  - {fileID: 1181164198}
