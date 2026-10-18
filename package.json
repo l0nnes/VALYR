@@ -6,6 +6,7 @@
   "scripts": {
     "release": "semantic-release",
     "release:dry-run": "semantic-release --dry-run",
+    "pack-asset": "node scripts/pack-asset.js",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs"
@@ -13,10 +14,12 @@
   "devDependencies": {
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/commit-analyzer": "^13.0.1",
+    "@semantic-release/exec": "^7.1.0",
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^11.0.1",
     "@semantic-release/release-notes-generator": "^14.0.3",
     "semantic-release": "^24.2.8",
+    "tar": "^7.5.22",
     "vitepress": "^1.6.4"
   }
 }

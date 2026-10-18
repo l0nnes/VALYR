@@ -31,7 +31,27 @@
         "npmPublish": false
       }
     ],
-    "@semantic-release/github",
+    [
+      "@semantic-release/exec",
+      {
+        "prepareCmd": "node scripts/pack-asset.js ${nextRelease.version}"
+      }
+    ],
+    [
+      "@semantic-release/github",
+      {
+        "assets": [
+          {
+            "path": "dist/*.unitypackage",
+            "label": "VALYR Unity Package (.unitypackage)"
+          },
+          {
+            "path": "dist/*.tar.gz",
+            "label": "VALYR Source Distribution (.tar.gz)"
+          }
+        ]
+      }
+    ],
     [
       "@semantic-release/git",
       {

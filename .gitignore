@@ -111,8 +111,10 @@ InitTestScene*.unity*
 /.idea
 /*.7z
 
-# Node.js and Documentation build artifacts
+# Node.js, Distribution, and Documentation build artifacts
 node_modules/
 package-lock.json
 docs/.vitepress/dist/
 docs/.vitepress/cache/
+dist/
+.unitypackage-temp/
