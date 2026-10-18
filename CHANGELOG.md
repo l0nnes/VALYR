@@ -1,9 +1,15 @@
 # [1.2.0](https://github.com/l0nnes/VALYR/compare/v1.1.0...v1.2.0) (2026-10-18)
 
+### Core
 
-### Features
-
+#### Features
 * **camera, input, scene:** add cockpit head look, driving inputs, terrain environment, and update scene profile ([f359d3f](https://github.com/l0nnes/VALYR/commit/f359d3ff3ef2def07de4e3c6ba8159bd5d63e755))
+* **camera, visual:** smooth camera tracking, wheel roll angular integration, and door collider linker ([d03fb14](https://github.com/l0nnes/VALYR/commit/d03fb14))
+
+### Multiplayer Addon
+* *(Addon features under active development in `feat/multiplayer-addon`)*
+
+---
 
 # [1.1.0](https://github.com/l0nnes/VALYR/compare/v1.0.1...v1.1.0) (2026-10-18)
 
@@ -11,7 +17,6 @@
 
 #### Features
 * **camera, input:** add Cinemachine multi-camera system and migrate vehicle input to New Input System ([34faa4f](https://github.com/l0nnes/VALYR/commit/34faa4fcb7c613fd23a759de698d0c7f2779be9b))
-* **camera, visual:** smooth camera tracking, wheel roll angular integration, and door collider linker ([325f4ce](https://github.com/l0nnes/VALYR/commit/325f4ce))
 
 #### Bug Fixes
 * **camera:** smooth look orbit damping and proper mouse/stick sensitivity scaling ([1980374](https://github.com/l0nnes/VALYR/commit/19803749d59d1e8ac108cbb3069cd02c8ae696bb))
