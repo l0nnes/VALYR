@@ -7,6 +7,7 @@ using VALYR.Core.Interfaces;
 using VALYR.Core.Math;
 using VALYR.Core.Modules;
 using VALYR.Modules.Assists;
+using VALYR.Modules.Contact;
 using VALYR.Modules.Powertrain;
 using VALYR.Modules.Steering;
 using VALYR.Modules.Suspension;
@@ -78,6 +79,7 @@ namespace VALYR.Runtime
         public LayerMask GroundLayers = ~((1 << 2) | (1 << 3)); // Exclude IgnoreRaycast (2) and Car (3)
 
         [Header("Modular Subsystems")]
+        [SerializeReference] public IWheelContactModule WheelContact = new WheelContactModule();
         [SerializeReference] public ISuspensionModule Suspension = new RaycastSuspensionModule();
         [SerializeReference] public ISteeringModule Steering = new DirectSteeringModule();
         [SerializeReference] public IEngineModule Engine = new ArcadeEngineModule();
@@ -166,9 +168,9 @@ namespace VALYR.Runtime
                 }
             }
 
-            if (Suspension is RaycastSuspensionModule raySusp)
+            if (WheelContact is WheelContactModule contactMod)
             {
-                raySusp.SurfaceLayers = GroundLayers;
+                contactMod.SurfaceLayers = GroundLayers;
             }
 
             if (_rigidbody != null)
@@ -200,6 +202,7 @@ namespace VALYR.Runtime
             _surfaceProvider = new UnityPhysicsSurfaceProvider();
 
             // Initialize all assigned modules
+            (WheelContact as VehicleModule)?.Initialize(in ChassisConfig);
             (Suspension as VehicleModule)?.Initialize(in ChassisConfig);
             (Steering as VehicleModule)?.Initialize(in ChassisConfig);
             (Engine as VehicleModule)?.Initialize(in ChassisConfig);
@@ -258,10 +261,16 @@ namespace VALYR.Runtime
                 Steering.UpdateSteering(in input, ref state, _physicsBody, in ChassisConfig, dt);
             }
 
-            // 2. Suspension rays and spring-damper solver (computes normal loads)
+            // 2. Wheel Contact Detection (scans ground, curbs, and obstacles with multi-ray/patch)
+            if (WheelContact != null)
+            {
+                WheelContact.DetectContacts(ref state, _physicsBody, _surfaceProvider, in ChassisConfig, dt);
+            }
+
+            // 3. Suspension dynamics & forces (computes Hooke's spring, dampers, bump stops, normal loads)
             if (Suspension != null)
             {
-                Suspension.SolveSuspension(ref state, _physicsBody, _surfaceProvider, in ChassisConfig, dt);
+                Suspension.SolveSuspension(ref state, _physicsBody, in ChassisConfig, dt);
             }
 
             // 3. Chassis assists (e.g. Anti-Roll Bar transfers load)
@@ -378,6 +387,8 @@ namespace VALYR.Runtime
                     }
                 }
             }
+
+            (WheelContact as WheelContactModule)?.DrawGizmos(in _state, in ChassisConfig, bodyPos, bodyRot);
         }
     }
 }

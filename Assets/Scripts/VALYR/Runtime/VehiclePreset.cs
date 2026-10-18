@@ -4,6 +4,7 @@ using UnityEngine;
 using VALYR.Core;
 using VALYR.Core.Modules;
 using VALYR.Modules.Assists;
+using VALYR.Modules.Contact;
 using VALYR.Modules.Powertrain;
 using VALYR.Modules.Steering;
 using VALYR.Modules.Suspension;
@@ -35,6 +36,7 @@ namespace VALYR.Runtime
         public LayerMask GroundLayers = ~((1 << 2) | (1 << 3));
 
         [Header("Modules")]
+        [SerializeReference] public IWheelContactModule WheelContact = new WheelContactModule();
         [SerializeReference] public ISuspensionModule Suspension = new RaycastSuspensionModule();
         [SerializeReference] public ISteeringModule Steering = new DirectSteeringModule();
         [SerializeReference] public IEngineModule Engine = new ArcadeEngineModule();
@@ -61,6 +63,7 @@ namespace VALYR.Runtime
             controller.WheelRadius = WheelRadius;
             controller.GroundLayers = GroundLayers;
 
+            controller.WheelContact = CloneModule(WheelContact);
             controller.Suspension = CloneModule(Suspension);
             controller.Steering = CloneModule(Steering);
             controller.Engine = CloneModule(Engine);
@@ -93,6 +96,7 @@ namespace VALYR.Runtime
             WheelRadius = controller.WheelRadius;
             GroundLayers = controller.GroundLayers;
 
+            WheelContact = CloneModule(controller.WheelContact);
             Suspension = CloneModule(controller.Suspension);
             Steering = CloneModule(controller.Steering);
             Engine = CloneModule(controller.Engine);

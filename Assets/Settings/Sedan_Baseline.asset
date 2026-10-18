@@ -18,6 +18,8 @@ MonoBehaviour:
   GroundLayers:
     serializedVersion: 2
     m_Bits: 4294967283
+  WheelContact:
+    rid: 6796886620113993896
   Suspension:
     rid: 6796886620113993846
   Steering:
@@ -58,9 +60,6 @@ MonoBehaviour:
           DamperReboundRate: 4000
           BumpStopBuffer: 0.03
           BumpStopStiffness: 150000
-        SurfaceLayers:
-          serializedVersion: 2
-          m_Bits: 4294967283
     - rid: 6796886620113993847
       type: {class: DirectSteeringModule, ns: VALYR.Modules.Steering, asm: VALYR.Modules}
       data:
@@ -200,3 +199,18 @@ MonoBehaviour:
         IsEnabled: 1
         SlipThreshold: 0.2
         TorqueReductionRatio: 0.35
+    - rid: 6796886620113993896
+      type: {class: WheelContactModule, ns: VALYR.Modules.Contact, asm: VALYR.Modules}
+      data:
+        ModuleId: Contact.MultiRay
+        IsEnabled: 1
+        ContactMode: 1
+        SurfaceLayers:
+          serializedVersion: 2
+          m_Bits: 4294967283
+        TireWidth: 0.21
+        SectorAngle: 70
+        RadialResolution: 5
+        WidthResolution: 3
+        WidthFactor: 0.9
+        MaxSearchLength: 0.6

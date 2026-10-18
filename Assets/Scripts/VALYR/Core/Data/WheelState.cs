@@ -42,6 +42,9 @@ namespace VALYR.Core
         [Tooltip("Total vertical normal load on the tire contact patch in Newtons (Fz).")]
         public float NormalLoad;
 
+        [Tooltip("Linear surface velocity of the contacted collider at the contact point in world space.")]
+        public Vector3 SurfaceVelocity;
+
         // --- Tire Forces & Slip Dynamics ---
         [Tooltip("Longitudinal tire slip ratio (sx, dimensionless).")]
         public float SlipRatio;

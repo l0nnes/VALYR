@@ -77,8 +77,9 @@ namespace VALYR.Modules.Suspension
     }
 
     /// <summary>
-    /// Independent raycast suspension module with separate front and rear axle tuning,
+    /// Independent suspension dynamics module with separate front and rear axle tuning,
     /// equilibrium-centered spring forces, hard MinLength arch protection, and progressive bump stop buffers.
+    /// Strictly decoupled from collision detection: operates directly on geometry provided by IWheelContactModule.
     /// </summary>
     [Serializable]
     public class RaycastSuspensionModule : VehicleModule, ISuspensionModule
@@ -90,19 +91,14 @@ namespace VALYR.Modules.Suspension
         [Tooltip("Suspension settings for the rear axle (RL, RR).")]
         public SuspensionAxleSettings RearAxle = SuspensionAxleSettings.DefaultRear;
 
-        [Header("Surface Detection")]
-        [Tooltip("Layer mask specifying ground colliders that the suspension raycast detects.")]
-        public LayerMask SurfaceLayers = ~0;
-
         public RaycastSuspensionModule()
         {
-            ModuleId = "Suspension.Raycast";
+            ModuleId = "Suspension.Standard";
         }
 
         public void SolveSuspension(
             ref VehicleState state,
             IPhysicsBody body,
-            ISurfaceProvider surfaceProvider,
             in VehicleChassisConfig chassis,
             float dt)
         {
@@ -120,26 +116,17 @@ namespace VALYR.Modules.Suspension
 
                 float radius = chassis.WheelRadii[i];
                 Vector3 mountPoint = bodyPos + bodyRot * chassis.WheelOffsets[i];
-                float maxRayDistance = settings.MaxLength + radius;
-
-                bool hasHit = surfaceProvider.CastRay(
-                    mountPoint,
-                    suspDown,
-                    maxRayDistance,
-                    SurfaceLayers,
-                    out SurfaceHit hit);
 
                 ref WheelState wheel = ref state.Wheels.GetRef(i);
 
-                if (hasHit)
+                float safeMinLength = Mathf.Max(settings.MinLength, radius);
+                float safeTargetLength = Mathf.Max(settings.TargetLength, safeMinLength + 0.01f);
+                float safeMaxLength = Mathf.Max(settings.MaxLength, safeTargetLength + 0.02f);
+
+                if (wheel.HasContact)
                 {
                     // Actual physical distance from mount point (anchor) to wheel hub on ground
-                    float currentLength = hit.Distance - radius;
-
-                    // Hard arch protection: minimum damper length cannot be less than wheel radius
-                    float safeMinLength = Mathf.Max(settings.MinLength, radius);
-                    float safeTargetLength = Mathf.Max(settings.TargetLength, safeMinLength + 0.01f);
-                    float safeMaxLength = Mathf.Max(settings.MaxLength, safeTargetLength + 0.02f);
+                    float currentLength = wheel.SuspensionLength;
 
                     // Compression relative to TargetLength (positive = compressed shorter than TargetLength)
                     float compression = safeTargetLength - currentLength;
@@ -197,9 +184,6 @@ namespace VALYR.Modules.Suspension
                     float effectiveLength = Mathf.Clamp(currentLength, safeMinLength, safeMaxLength);
 
                     // Update wheel state
-                    wheel.HasContact = true;
-                    wheel.ContactPoint = hit.Point;
-                    wheel.ContactNormal = hit.Normal;
                     wheel.SuspensionLength = effectiveLength;
                     wheel.SuspensionCompression = compression;
                     wheel.SuspensionVelocity = suspVelocity;
@@ -207,12 +191,7 @@ namespace VALYR.Modules.Suspension
                 }
                 else
                 {
-                    float safeMaxLength = Mathf.Max(settings.MaxLength, settings.TargetLength + 0.02f);
-
                     // Wheel airborne: fully extended to MaxLength
-                    wheel.HasContact = false;
-                    wheel.ContactPoint = mountPoint + suspDown * maxRayDistance;
-                    wheel.ContactNormal = -suspDown;
                     wheel.SuspensionLength = safeMaxLength;
                     wheel.SuspensionCompression = settings.TargetLength - safeMaxLength;
                     wheel.SuspensionVelocity = 0f;

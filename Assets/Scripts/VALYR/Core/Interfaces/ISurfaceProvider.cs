@@ -3,7 +3,7 @@ using UnityEngine;
 namespace VALYR.Core.Interfaces
 {
     /// <summary>
-    /// Результат сканирования поверхности подвеской.
+    /// Surface scan hit result containing contact point, normal, distance, and surface material information.
     /// </summary>
     public struct SurfaceHit
     {
@@ -26,10 +26,18 @@ namespace VALYR.Core.Interfaces
     }
 
     /// <summary>
-    /// Абстракция провайдера поверхности (лучи Raycast / SphereCast).
+    /// Abstraction for physics scene surface detection (Raycast, SphereCast, etc.).
     /// </summary>
     public interface ISurfaceProvider
     {
+        /// <summary>
+        /// Casts an infinitesimal ray into the scene.
+        /// </summary>
         bool CastRay(Vector3 origin, Vector3 direction, float maxDistance, int layerMask, out SurfaceHit hit);
+
+        /// <summary>
+        /// Casts a volumetric sphere into the scene.
+        /// </summary>
+        bool CastSphere(Vector3 origin, float radius, Vector3 direction, float maxDistance, int layerMask, out SurfaceHit hit);
     }
 }

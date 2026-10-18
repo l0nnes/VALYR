@@ -25,6 +25,7 @@ namespace VALYR.Editor
         private SerializedProperty _groundLayersProp;
         private SerializedProperty _visualViewProp;
 
+        private SerializedProperty _wheelContactProp;
         private SerializedProperty _suspensionProp;
         private SerializedProperty _steeringProp;
         private SerializedProperty _engineProp;
@@ -34,6 +35,7 @@ namespace VALYR.Editor
 
         // Foldout toggles
         private static bool _chassisFoldout = true;
+        private static bool _wheelContactFoldout = true;
         private static bool _suspensionFoldout = true;
         private static bool _steeringFoldout = true;
         private static bool _powertrainFoldout = true;
@@ -52,6 +54,7 @@ namespace VALYR.Editor
             _groundLayersProp = serializedObject.FindProperty("GroundLayers");
             _visualViewProp = serializedObject.FindProperty("_visualView");
 
+            _wheelContactProp = serializedObject.FindProperty("WheelContact");
             _suspensionProp = serializedObject.FindProperty("Suspension");
             _steeringProp = serializedObject.FindProperty("Steering");
             _engineProp = serializedObject.FindProperty("Engine");
@@ -75,6 +78,9 @@ namespace VALYR.Editor
 
             // 3. Categorized Subsystem Modules
             EditorGUILayout.LabelField("Modular Subsystems", EditorStyles.boldLabel);
+
+            DrawModuleCategory<IWheelContactModule>("Wheel Contact Subsystem", _wheelContactProp, ref _wheelContactFoldout);
+            EditorGUILayout.Space(4);
 
             DrawModuleCategory<ISuspensionModule>("Suspension Subsystem", _suspensionProp, ref _suspensionFoldout);
             EditorGUILayout.Space(4);
