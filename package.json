@@ -1,6 +1,6 @@
 {
   "name": "valyr",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "description": "Vehicle simulation framework for Unity and other engines.",
   "author": "Zakhar Czembrowicz (l0nnes)",
