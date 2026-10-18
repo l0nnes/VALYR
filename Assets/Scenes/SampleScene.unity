@@ -10429,19 +10429,19 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4294967283
   Suspension:
-    rid: 6796886620113993806
+    rid: 6796886620113993878
   Steering:
-    rid: 6796886620113993807
+    rid: 6796886620113993879
   Engine:
-    rid: 6796886620113993808
+    rid: 6796886620113993880
   Transmission:
-    rid: 6796886620113993809
+    rid: 6796886620113993881
   Tires:
-    rid: 6796886620113993810
+    rid: 6796886620113993882
   Assists:
-  - rid: 6796886620113993811
-  - rid: 6796886620113993812
-  - rid: 6796886620113993813
+  - rid: 6796886620113993883
+  - rid: 6796886620113993884
+  - rid: 6796886620113993885
   _state:
     Tick: 0
     EngineRpm: 0
@@ -10530,33 +10530,33 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 6796886620113993806
+    - rid: 6796886620113993878
       type: {class: RaycastSuspensionModule, ns: VALYR.Modules.Suspension, asm: VALYR.Modules}
       data:
         ModuleId: Suspension.Raycast
         IsEnabled: 1
         FrontAxle:
-          TargetLength: 0.44
-          MinLength: 0.35
-          MaxLength: 0.58
-          SpringStiffness: 28000
-          DamperCompressionRate: 3000
-          DamperReboundRate: 4200
-          BumpStopBuffer: 0.04
-          BumpStopStiffness: 350000
+          TargetLength: 0.38
+          MinLength: 0.33
+          MaxLength: 0.55
+          SpringStiffness: 32000
+          DamperCompressionRate: 3200
+          DamperReboundRate: 4500
+          BumpStopBuffer: 0.03
+          BumpStopStiffness: 150000
         RearAxle:
-          TargetLength: 0.44
-          MinLength: 0.35
-          MaxLength: 0.58
-          SpringStiffness: 24000
-          DamperCompressionRate: 2600
-          DamperReboundRate: 3800
-          BumpStopBuffer: 0.04
-          BumpStopStiffness: 350000
+          TargetLength: 0.38
+          MinLength: 0.33
+          MaxLength: 0.55
+          SpringStiffness: 28000
+          DamperCompressionRate: 2800
+          DamperReboundRate: 4000
+          BumpStopBuffer: 0.03
+          BumpStopStiffness: 150000
         SurfaceLayers:
           serializedVersion: 2
           m_Bits: 4294967283
-    - rid: 6796886620113993807
+    - rid: 6796886620113993879
       type: {class: DirectSteeringModule, ns: VALYR.Modules.Steering, asm: VALYR.Modules}
       data:
         ModuleId: Steering.Direct
@@ -10567,7 +10567,7 @@ MonoBehaviour:
         HighSpeedThreshold: 40
         SteeringResponseRate: 16
         UseAckermann: 1
-    - rid: 6796886620113993808
+    - rid: 6796886620113993880
       type: {class: ArcadeEngineModule, ns: VALYR.Modules.Powertrain, asm: VALYR.Modules}
       data:
         ModuleId: Powertrain.Engine
@@ -10631,7 +10631,7 @@ MonoBehaviour:
           m_PreInfinity: 2
           m_PostInfinity: 2
           m_RotationOrder: 4
-    - rid: 6796886620113993809
+    - rid: 6796886620113993881
       type: {class: SimpleTransmissionModule, ns: VALYR.Modules.Powertrain, asm: VALYR.Modules}
       data:
         ModuleId: Powertrain.Transmission
@@ -10655,7 +10655,7 @@ MonoBehaviour:
         MaxBrakeTorque: 1800
         FrontBrakeBias: 0.72
         MaxHandbrakeTorque: 2400
-    - rid: 6796886620113993810
+    - rid: 6796886620113993882
       type: {class: BrushTireModule, ns: VALYR.Modules.Tires, asm: VALYR.Modules}
       data:
         ModuleId: Tires.Brush
@@ -10673,14 +10673,14 @@ MonoBehaviour:
           FrictionCoefficientY: 0.95
           LowSpeedThreshold: 0.5
         WheelInertia: 1.1
-    - rid: 6796886620113993811
+    - rid: 6796886620113993883
       type: {class: AntiRollBarModule, ns: VALYR.Modules.Assists, asm: VALYR.Modules}
       data:
         ModuleId: Assists.AntiRollBar
         IsEnabled: 1
         FrontStiffness: 4500
         RearStiffness: 2200
-    - rid: 6796886620113993812
+    - rid: 6796886620113993884
       type: {class: AbsModule, ns: VALYR.Modules.Assists, asm: VALYR.Modules}
       data:
         ModuleId: Assists.ABS
@@ -10688,7 +10688,7 @@ MonoBehaviour:
         SlipThreshold: -0.18
         MinSpeedThreshold: 2.5
         PressureReleaseRatio: 0.35
-    - rid: 6796886620113993813
+    - rid: 6796886620113993885
       type: {class: TcsModule, ns: VALYR.Modules.Assists, asm: VALYR.Modules}
       data:
         ModuleId: Assists.TCS

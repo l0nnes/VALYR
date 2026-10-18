@@ -328,9 +328,9 @@ namespace VALYR.Runtime
                 Vector3 mountPoint = bodyPos + bodyRot * ChassisConfig.WheelOffsets[i];
                 float radius = ChassisConfig.WheelRadii[i];
 
-                float minLen = 0.35f;
-                float targetLen = 0.44f;
-                float maxLen = 0.58f;
+                float minLen = 0.33f;
+                float targetLen = 0.38f;
+                float maxLen = 0.55f;
 
                 if (Suspension is RaycastSuspensionModule raySusp)
                 {

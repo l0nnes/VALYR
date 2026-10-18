@@ -41,23 +41,23 @@ MonoBehaviour:
         ModuleId: Suspension.Raycast
         IsEnabled: 1
         FrontAxle:
-          TargetLength: 0.44
-          MinLength: 0.35
-          MaxLength: 0.58
-          SpringStiffness: 28000
-          DamperCompressionRate: 3000
-          DamperReboundRate: 4200
-          BumpStopBuffer: 0.04
-          BumpStopStiffness: 350000
+          TargetLength: 0.38
+          MinLength: 0.33
+          MaxLength: 0.55
+          SpringStiffness: 32000
+          DamperCompressionRate: 3200
+          DamperReboundRate: 4500
+          BumpStopBuffer: 0.03
+          BumpStopStiffness: 150000
         RearAxle:
-          TargetLength: 0.44
-          MinLength: 0.35
-          MaxLength: 0.58
-          SpringStiffness: 24000
-          DamperCompressionRate: 2600
-          DamperReboundRate: 3800
-          BumpStopBuffer: 0.04
-          BumpStopStiffness: 350000
+          TargetLength: 0.38
+          MinLength: 0.33
+          MaxLength: 0.55
+          SpringStiffness: 28000
+          DamperCompressionRate: 2800
+          DamperReboundRate: 4000
+          BumpStopBuffer: 0.03
+          BumpStopStiffness: 150000
         SurfaceLayers:
           serializedVersion: 2
           m_Bits: 4294967283

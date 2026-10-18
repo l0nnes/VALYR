@@ -122,7 +122,7 @@ namespace VALYR.Runtime.Visual
                 if (_anchors[i] != null)
                 {
                     Vector3 anchorLocal = wheelTransform.parent.InverseTransformPoint(_anchors[i].position);
-                    float suspLength = wheelState.SuspensionLength > 0.001f ? wheelState.SuspensionLength : 0.44f;
+                    float suspLength = wheelState.SuspensionLength > 0.001f ? wheelState.SuspensionLength : 0.38f;
                     basePos = new Vector3(anchorLocal.x, anchorLocal.y - suspLength, anchorLocal.z);
                 }
                 else
