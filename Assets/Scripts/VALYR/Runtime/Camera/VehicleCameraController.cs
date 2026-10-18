@@ -48,7 +48,7 @@ namespace VALYR.Runtime.Cameras
     /// <summary>
     /// Comprehensive Cinemachine-based vehicle camera system with New Input System support.
     /// Supports multiple camera modes (Chase Near, Chase Far, Cockpit, Bumper, Free Orbit),
-    /// dynamic speed FOV expansion, manual look-around with auto-recentering, and quick Look Back.
+    /// dynamic speed FOV expansion, smooth damped look-around with auto-recentering, and quick Look Back.
     /// </summary>
     public class VehicleCameraController : MonoBehaviour
     {
@@ -86,21 +86,37 @@ namespace VALYR.Runtime.Cameras
         [Tooltip("FOV smoothing rate (1/s).")]
         public float FovLerpSpeed = 4f;
 
-        [Header("Chase Orbit & Auto-Recentering")]
-        [Tooltip("Manual look orbit sensitivity multiplier (X = yaw, Y = pitch).")]
-        public Vector2 LookSensitivity = new Vector2(1.5f, 1.2f);
+        [Header("Chase Orbit & Look Tuning")]
+        [Tooltip("Mouse look sensitivity (degrees per pixel).")]
+        [Range(0.01f, 1f)]
+        public float MouseSensitivity = 0.12f;
 
-        [Tooltip("Pitch clamp limits in degrees (min, max).")]
-        public Vector2 PitchLimits = new Vector2(-15f, 50f);
+        [Tooltip("Gamepad stick look sensitivity (degrees per second).")]
+        [Range(30f, 360f)]
+        public float GamepadSensitivity = 120f;
+
+        [Tooltip("Smoothing time (seconds) for camera orbit movement. Higher = smoother/heavier, lower = snappier.")]
+        [Range(0.02f, 0.3f)]
+        public float OrbitDamping = 0.08f;
+
+        [Tooltip("Smoothing time (seconds) when transitioning into/out of Look Back (180 deg).")]
+        [Range(0.02f, 0.25f)]
+        public float LookBackDamping = 0.06f;
+
+        [Tooltip("Vertical pitch clamp limits in degrees (min = looking up, max = looking down).")]
+        public Vector2 PitchLimits = new Vector2(-10f, 40f);
 
         [Tooltip("Seconds of no look input before the chase camera auto-recenters behind the moving car.")]
-        public float RecenterDelay = 1.2f;
+        public float RecenterDelay = 1.0f;
 
-        [Tooltip("Speed (1/s) at which the camera recenters behind the car.")]
-        public float RecenterSpeed = 4.0f;
+        [Tooltip("Speed (degrees/second) at which target angle returns to center.")]
+        public float RecenterSpeed = 90.0f;
 
         [Tooltip("Minimum vehicle speed (km/h) required for auto-recentering to activate.")]
-        public float MinRecenterSpeedKmh = 5f;
+        public float MinRecenterSpeedKmh = 4.0f;
+
+        [Tooltip("Optional: Require holding Right Mouse Button to rotate camera with mouse.")]
+        public bool RequireRightClickForMouseLook = false;
 
         [Header("Input Actions Asset")]
         [Tooltip("Input Actions asset (e.g. GameInput). Can be assigned in Inspector or loaded automatically.")]
@@ -124,9 +140,13 @@ namespace VALYR.Runtime.Cameras
         private InputAction _lookBackAction;
         private InputAction _lookAction;
 
-        // Internal orbit and state tracking
-        private float _orbitYaw;
-        private float _orbitPitch;
+        // Internal orbit target and smoothed state
+        private float _targetYaw;
+        private float _targetPitch;
+        private float _currentYaw;
+        private float _currentPitch;
+        private float _yawVelocity;
+        private float _pitchVelocity;
         private float _lastLookInputTime;
         private bool _isLookingBack;
         private float _currentSpeedKmh;
@@ -281,31 +301,70 @@ namespace VALYR.Runtime.Cameras
             }
             _isLookingBack = lookBackHeld;
 
-            // 3. Read manual look/orbit input
-            Vector2 lookInput = Vector2.zero;
+            // 3. Read and process manual look/orbit input
+            Vector2 rawLook = Vector2.zero;
             if (_lookAction != null)
             {
-                lookInput = _lookAction.ReadValue<Vector2>();
+                rawLook = _lookAction.ReadValue<Vector2>();
             }
 
-            if (lookInput.sqrMagnitude > 0.001f)
+            bool hasLookInput = false;
+            if (rawLook.sqrMagnitude > 0.0001f)
             {
-                _orbitYaw += lookInput.x * LookSensitivity.x;
-                _orbitPitch -= lookInput.y * LookSensitivity.y;
-                _orbitPitch = Mathf.Clamp(_orbitPitch, PitchLimits.x, PitchLimits.y);
-                _lastLookInputTime = Time.time;
-            }
-            else
-            {
-                // Auto-recenter when driving forward
-                if (Time.time - _lastLookInputTime > RecenterDelay && _currentSpeedKmh > MinRecenterSpeedKmh)
+                bool isGamepad = _lookAction != null && _lookAction.activeControl?.device is Gamepad;
+                float deltaYaw;
+                float deltaPitch;
+
+                if (isGamepad)
                 {
-                    _orbitYaw = Mathf.MoveTowardsAngle(_orbitYaw, 0f, RecenterSpeed * 45f * dt);
-                    _orbitPitch = Mathf.MoveTowards(_orbitPitch, 0f, RecenterSpeed * 20f * dt);
+                    // Gamepad stick: rawLook is normalized [-1, 1], scales per second with dt
+                    deltaYaw = rawLook.x * GamepadSensitivity * dt;
+                    deltaPitch = rawLook.y * GamepadSensitivity * dt;
+                    hasLookInput = true;
+                }
+                else
+                {
+                    // Mouse pointer: rawLook is pixel delta since last frame
+                    if (!RequireRightClickForMouseLook || (Mouse.current != null && Mouse.current.rightButton.isPressed))
+                    {
+                        deltaYaw = rawLook.x * MouseSensitivity;
+                        deltaPitch = rawLook.y * MouseSensitivity;
+                        hasLookInput = true;
+                    }
+                    else
+                    {
+                        deltaYaw = 0f;
+                        deltaPitch = 0f;
+                    }
+                }
+
+                if (hasLookInput)
+                {
+                    _targetYaw += deltaYaw;
+                    _targetPitch -= deltaPitch;
+                    _targetPitch = Mathf.Clamp(_targetPitch, PitchLimits.x, PitchLimits.y);
+                    _lastLookInputTime = Time.time;
                 }
             }
 
-            // 4. Update Dynamic FOV on the active camera
+            // 4. Auto-recenter behind the car when driving forward
+            if (!hasLookInput && !_isLookingBack)
+            {
+                if (Time.time - _lastLookInputTime > RecenterDelay && _currentSpeedKmh > MinRecenterSpeedKmh)
+                {
+                    _targetYaw = Mathf.MoveTowardsAngle(_targetYaw, 0f, RecenterSpeed * dt);
+                    _targetPitch = Mathf.MoveTowards(_targetPitch, 0f, RecenterSpeed * 0.5f * dt);
+                }
+            }
+
+            // 5. Smoothly damp current yaw & pitch towards target
+            float desiredYaw = _isLookingBack ? 180f : _targetYaw;
+            float currentDampTime = _isLookingBack ? LookBackDamping : OrbitDamping;
+
+            _currentYaw = Mathf.SmoothDampAngle(_currentYaw, desiredYaw, ref _yawVelocity, currentDampTime);
+            _currentPitch = Mathf.SmoothDamp(_currentPitch, _targetPitch, ref _pitchVelocity, currentDampTime);
+
+            // 6. Update Dynamic FOV on the active camera
             var activeSlot = CurrentSlot;
             if (activeSlot != null && activeSlot.Camera != null && activeSlot.EnableDynamicFOV)
             {
@@ -315,7 +374,7 @@ namespace VALYR.Runtime.Cameras
                 activeSlot.Camera.Lens.FieldOfView = Mathf.MoveTowards(currentFov, targetFov, FovLerpSpeed * 10f * dt);
             }
 
-            // 5. Update look back rotation or orbit on active chase camera
+            // 7. Update chase camera orientation
             UpdateChaseCameraOrientation(activeSlot, dt);
         }
 
@@ -323,22 +382,22 @@ namespace VALYR.Runtime.Cameras
         {
             if (slot == null || slot.Camera == null) return;
 
-            // Apply LookBack or manual orbit on Chase / Orbit cameras
+            // Apply smooth damped orbit on Chase cameras
             if (slot.Mode == VehicleCameraMode.ChaseNear || slot.Mode == VehicleCameraMode.ChaseFar)
             {
                 var follow = slot.Camera.GetComponent<CinemachineFollow>();
                 if (follow != null)
                 {
-                    float targetYaw = _isLookingBack ? 180f : _orbitYaw;
                     Vector3 baseOffset = (slot.Mode == VehicleCameraMode.ChaseNear)
                         ? new Vector3(0f, 1.8f, -5.2f)
                         : new Vector3(0f, 2.7f, -7.5f);
 
-                    // Slightly pull back with speed
+                    // Dynamic subtle pull back with speed
                     float speedPullBack = Mathf.Clamp01(_currentSpeedKmh / 160f) * 0.8f;
                     Vector3 dynamicOffset = baseOffset + new Vector3(0f, 0f, -speedPullBack);
 
-                    Quaternion orbitRot = Quaternion.Euler(_orbitPitch, targetYaw, 0f);
+                    // Apply smoothly damped orbit rotation
+                    Quaternion orbitRot = Quaternion.Euler(_currentPitch, _currentYaw, 0f);
                     follow.FollowOffset = orbitRot * dynamicOffset;
                 }
             }

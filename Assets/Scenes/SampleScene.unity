@@ -503,7 +503,7 @@ Transform:
   m_GameObject: {fileID: 77146306}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: -0.35, y: 2.83, z: -0.15}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -552,7 +552,7 @@ MonoBehaviour:
     m_Value: 10
   OutputChannel: 1
   StandbyUpdate: 2
-  m_StreamingVersion: 0
+  m_StreamingVersion: 20241001
   m_LegacyPriority: 0
   Target:
     TrackingTarget: {fileID: 1127292817}
@@ -2073,11 +2073,11 @@ Camera:
     y: 0
     width: 1
     height: 1
-  near clip plane: 0.3
-  far clip plane: 1000
+  near clip plane: 0.1
+  far clip plane: 5000
   field of view: 60
   orthographic: 0
-  orthographic size: 5
+  orthographic size: 10
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
@@ -2101,8 +2101,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.1260668, y: 0.000000029564557, z: -0.000000003757084, w: 0.99202174}
-  m_LocalPosition: {x: 0, y: 4.0299997, z: -6}
+  m_LocalRotation: {x: 0.020819781, y: 0, z: 0, w: 0.9997833}
+  m_LocalPosition: {x: 0, y: 3.58, z: -5.2}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -11024,11 +11024,15 @@ MonoBehaviour:
   InactivePriority: 10
   MaxFovSpeedKmh: 160
   FovLerpSpeed: 4
-  LookSensitivity: {x: 1.5, y: 1.2}
-  PitchLimits: {x: -15, y: 50}
-  RecenterDelay: 1.2
-  RecenterSpeed: 4
-  MinRecenterSpeedKmh: 5
+  MouseSensitivity: 0.12
+  GamepadSensitivity: 120
+  OrbitDamping: 0.08
+  LookBackDamping: 0.06
+  PitchLimits: {x: -10, y: 40}
+  RecenterDelay: 1
+  RecenterSpeed: 90
+  MinRecenterSpeedKmh: 4
+  RequireRightClickForMouseLook: 0
   _inputActions: {fileID: -944628639613478452, guid: d0d4d06f8ea35fc4ab4cf3d8000f3a1f, type: 3}
   _actionMapName: Driving
   _changeCameraActionName: Change Camera
@@ -14457,8 +14461,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1363960217}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: 0.062783845, y: 0, z: 0, w: 0.99802715}
+  m_LocalPosition: {x: 0, y: 4.48, z: -7.5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -14529,7 +14533,7 @@ MonoBehaviour:
     m_Value: 10
   OutputChannel: 1
   StandbyUpdate: 2
-  m_StreamingVersion: 0
+  m_StreamingVersion: 20241001
   m_LegacyPriority: 0
   Target:
     TrackingTarget: {fileID: 834320176}
@@ -17192,7 +17196,7 @@ Transform:
   m_GameObject: {fileID: 1518678679}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 2.4299998, z: 1.95}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -17241,7 +17245,7 @@ MonoBehaviour:
     m_Value: 10
   OutputChannel: 1
   StandbyUpdate: 2
-  m_StreamingVersion: 0
+  m_StreamingVersion: 20241001
   m_LegacyPriority: 0
   Target:
     TrackingTarget: {fileID: 1525614657}
@@ -18417,8 +18421,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1540415290}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: 0.020819781, y: 0, z: 0, w: 0.9997833}
+  m_LocalPosition: {x: 0, y: 3.58, z: -5.2}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -18489,7 +18493,7 @@ MonoBehaviour:
     m_Value: 20
   OutputChannel: 1
   StandbyUpdate: 2
-  m_StreamingVersion: 0
+  m_StreamingVersion: 20241001
   m_LegacyPriority: 0
   Target:
     TrackingTarget: {fileID: 834320176}
