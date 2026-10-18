@@ -2413,6 +2413,9 @@ GameObject:
   - component: {fileID: 1186247575251079717}
   - component: {fileID: 766774808846143588}
   - component: {fileID: 7242971327080911299}
+  - component: {fileID: 3928272573034743336}
+  - component: {fileID: 7792432453920262239}
+  - component: {fileID: 8506903820311202588}
   m_Layer: 3
   m_Name: NetworkTruck
   m_TagString: Untagged
@@ -3171,22 +3174,14 @@ MonoBehaviour:
       EngineRpm: 0
       CurrentGear: 0
       SteerAngle: 0
+      ForwardSpeed: 0
       SuspLength0: 0
       SuspLength1: 0
       SuspLength2: 0
       SuspLength3: 0
-      RollAngle0: 0
-      RollAngle1: 0
-      RollAngle2: 0
-      RollAngle3: 0
       IsBraking: 0
       IsHandbraking: 0
       IsReversing: 0
-      HeadlightMode: 0
-      IsHazardActive: 0
-      IsLeftTurnActive: 0
-      IsRightTurnActive: 0
-      DoorOpenFlags: 0
     _ownerAuth: 1
     _ownerOnly: 0
     _sendIntervalInSeconds: 0.033
@@ -3194,22 +3189,109 @@ MonoBehaviour:
       EngineRpm: 0
       CurrentGear: 0
       SteerAngle: 0
+      ForwardSpeed: 0
       SuspLength0: 0
       SuspLength1: 0
       SuspLength2: 0
       SuspLength3: 0
-      RollAngle0: 0
-      RollAngle1: 0
-      RollAngle2: 0
-      RollAngle3: 0
       IsBraking: 0
       IsHandbraking: 0
       IsReversing: 0
+--- !u!114 &3928272573034743336
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2344141437621414101}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4f6b0d541e716eb42a0565f33e5fade1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: VALYR.Multiplayer::VALYR.Multiplayer.NetworkVehicleDoors
+  _networkRules: {fileID: 0}
+  _visitiblityRules: {fileID: 0}
+  _isSetup: 0
+  _prefabId: -2147483648
+  _hasPrefabScope: 0
+  _prefabScope: 0
+  _componentIndex: -2147483648
+  _shouldBePooled: 0
+  _parent: {fileID: 0}
+  _invertedPathToNearestParent: 
+  _directChildren: []
+  _doorFlags:
+    _value: 0
+    _ownerAuth: 1
+    _ownerOnly: 0
+    _sendIntervalInSeconds: 0.05
+    _initialValue: 0
+--- !u!114 &7792432453920262239
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2344141437621414101}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7fdfc1fdeeaef494188267adaa8cceb2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: VALYR.Multiplayer::VALYR.Multiplayer.NetworkVehicleLights
+  _networkRules: {fileID: 0}
+  _visitiblityRules: {fileID: 0}
+  _isSetup: 0
+  _prefabId: -2147483648
+  _hasPrefabScope: 0
+  _prefabScope: 0
+  _componentIndex: -2147483648
+  _shouldBePooled: 0
+  _parent: {fileID: 0}
+  _invertedPathToNearestParent: 
+  _directChildren: []
+  _lightsState:
+    _value:
       HeadlightMode: 0
-      IsHazardActive: 0
-      IsLeftTurnActive: 0
-      IsRightTurnActive: 0
-      DoorOpenFlags: 0
+      IsLeftTurn: 0
+      IsRightTurn: 0
+      IsHazard: 0
+      IsBraking: 0
+      IsReversing: 0
+      IsHandbraking: 0
+    _ownerAuth: 1
+    _ownerOnly: 0
+    _sendIntervalInSeconds: 0.05
+    _initialValue:
+      HeadlightMode: 0
+      IsLeftTurn: 0
+      IsRightTurn: 0
+      IsHazard: 0
+      IsBraking: 0
+      IsReversing: 0
+      IsHandbraking: 0
+--- !u!114 &8506903820311202588
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2344141437621414101}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 76867b20a4b25b140b2fa25a4619a8ea, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: VALYR.Multiplayer::VALYR.Multiplayer.NetworkVehicleInterior
+  _networkRules: {fileID: 0}
+  _visitiblityRules: {fileID: 0}
+  _isSetup: 0
+  _prefabId: -2147483648
+  _hasPrefabScope: 0
+  _prefabScope: 0
+  _componentIndex: -2147483648
+  _shouldBePooled: 0
+  _parent: {fileID: 0}
+  _invertedPathToNearestParent: 
+  _directChildren: []
 --- !u!1 &2446260437280071161
 GameObject:
   m_ObjectHideFlags: 0

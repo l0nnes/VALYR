@@ -14,11 +14,15 @@ using VALYR.Runtime.UI;
 namespace VALYR.Multiplayer
 {
     /// <summary>
-    /// Multiplayer addon adapter for VALYR vehicle.
-    /// Manages client-owner authority, disables remote inputs/cameras,
-    /// synchronizes wheel transforms, lighting, and door states over PurrNet,
-    /// dynamically binds the local player's Cinemachine camera rig with all camera slots,
-    /// and configures rigidbodies for dynamic PhysX collisions without gravity belly sagging.
+    /// Base multiplayer adapter for VALYR vehicles over PurrNet.
+    /// Strictly responsible for core functionality:
+    /// - Dynamic PhysX Rigidbody configuration and collision response without belly sagging
+    /// - Client-owner authority management and input isolation
+    /// - Cinemachine camera rig binding (all 5 camera slots with C key switching)
+    /// - Silky-smooth wheel visuals (continuous roll integration and smooth steer angle lerp)
+    /// 
+    /// Visual addons (doors, lights, interior controls & dashboard) are managed by dedicated
+    /// modular components: NetworkVehicleDoors, NetworkVehicleLights, NetworkVehicleInterior.
     /// </summary>
     [RequireComponent(typeof(NetworkRigidbody))]
     [RequireComponent(typeof(VehicleController))]
@@ -35,54 +39,20 @@ namespace VALYR.Multiplayer
         private VehicleCameraController _cameraController;
         private VehicleTelemetryHUD _telemetryHUD;
         private VehicleVisualView _visualView;
-        private Component _doorController;
-        private Component _lightController;
         private NetworkRigidbody _networkRigidbody;
         private Rigidbody _rigidbody;
 
+        // Modular addon components
+        private NetworkVehicleDoors _netDoors;
+        private NetworkVehicleLights _netLights;
+        private NetworkVehicleInterior _netInterior;
+
+        // Smooth wheel visual interpolation for remote proxies
+        private float _smoothedSteerAngle;
+        private float _proxyWheelRollAngle;
+
         private static readonly FieldInfo CameraSlotsField =
             typeof(VehicleCameraController).GetField("_cameraSlots", BindingFlags.NonPublic | BindingFlags.Instance);
-
-        // Reflection cache for VehicleDoorController & VehicleLightController (Assembly-CSharp)
-        private static readonly Type DoorControllerType =
-            Type.GetType("VALYR.Runtime.Visual.VehicleDoorController, Assembly-CSharp");
-        private static readonly FieldInfo LeftDoorField = DoorControllerType?.GetField("LeftDoor");
-        private static readonly FieldInfo RightDoorField = DoorControllerType?.GetField("RightDoor");
-        private static readonly FieldInfo HoodField = DoorControllerType?.GetField("Hood");
-        private static readonly FieldInfo TailgateField = DoorControllerType?.GetField("Tailgate");
-        private static readonly FieldInfo IsOpenField = LeftDoorField?.FieldType.GetField("IsOpen");
-        private static readonly MethodInfo DoorToggleLeftMethod = DoorControllerType?.GetMethod("ToggleLeftDoor");
-        private static readonly MethodInfo DoorToggleRightMethod = DoorControllerType?.GetMethod("ToggleRightDoor");
-        private static readonly MethodInfo DoorToggleHoodMethod = DoorControllerType?.GetMethod("ToggleHood");
-        private static readonly MethodInfo DoorToggleTailgateMethod = DoorControllerType?.GetMethod("ToggleTailgate");
-        private static readonly MethodInfo DoorResolveInputMethod =
-            DoorControllerType?.GetMethod("ResolveInputActions", BindingFlags.NonPublic | BindingFlags.Instance);
-        private static readonly MethodInfo DoorSubscribeMethod =
-            DoorControllerType?.GetMethod("SubscribeInputActions", BindingFlags.NonPublic | BindingFlags.Instance);
-        private static readonly MethodInfo DoorUnsubscribeMethod =
-            DoorControllerType?.GetMethod("UnsubscribeInputActions", BindingFlags.NonPublic | BindingFlags.Instance);
-
-        private static readonly Type LightControllerType =
-            Type.GetType("VALYR.Runtime.Visual.VehicleLightController, Assembly-CSharp");
-        private static readonly PropertyInfo CurrentHeadlightModeProp = LightControllerType?.GetProperty("CurrentHeadlightMode");
-        private static readonly PropertyInfo IsHazardActiveProp = LightControllerType?.GetProperty("IsHazardActive");
-        private static readonly PropertyInfo IsLeftTurnActiveProp = LightControllerType?.GetProperty("IsLeftTurnActive");
-        private static readonly PropertyInfo IsRightTurnActiveProp = LightControllerType?.GetProperty("IsRightTurnActive");
-        private static readonly MethodInfo SetHeadlightModeMethod = LightControllerType?.GetMethod("SetHeadlightMode");
-        private static readonly MethodInfo LightCycleHeadlightsMethod = LightControllerType?.GetMethod("CycleHeadlights");
-        private static readonly MethodInfo LightToggleHighBeamMethod = LightControllerType?.GetMethod("ToggleHighBeam");
-        private static readonly MethodInfo LightToggleLeftTurnMethod = LightControllerType?.GetMethod("ToggleLeftTurn");
-        private static readonly MethodInfo LightToggleRightTurnMethod = LightControllerType?.GetMethod("ToggleRightTurn");
-        private static readonly MethodInfo LightToggleHazardMethod = LightControllerType?.GetMethod("ToggleHazard");
-        private static readonly FieldInfo BrakeLightsField = LightControllerType?.GetField("BrakeLights");
-        private static readonly FieldInfo ReverseLightsField = LightControllerType?.GetField("ReverseLights");
-        private static readonly FieldInfo HandbrakeLightsField = LightControllerType?.GetField("HandbrakeLights");
-        private static readonly MethodInfo LightResolveInputMethod =
-            LightControllerType?.GetMethod("ResolveInputActions", BindingFlags.NonPublic | BindingFlags.Instance);
-        private static readonly MethodInfo LightSubscribeMethod =
-            LightControllerType?.GetMethod("SubscribeInputActions", BindingFlags.NonPublic | BindingFlags.Instance);
-        private static readonly MethodInfo LightUnsubscribeMethod =
-            LightControllerType?.GetMethod("UnsubscribeInputActions", BindingFlags.NonPublic | BindingFlags.Instance);
 
         /// <summary>
         /// Explicit target player ID assigned during server spawn.
@@ -104,8 +74,6 @@ namespace VALYR.Multiplayer
                     return false;
                 }
 
-                // If explicitly assigned during spawn, verify against local player ID so server/host
-                // doesn't claim client car before ownership replication
                 if (AssignedPlayerId.HasValue)
                 {
                     return AssignedPlayerId.Value == NetworkManager.main.localPlayer;
@@ -120,6 +88,7 @@ namespace VALYR.Multiplayer
         private void Awake()
         {
             EnsureComponentsCached();
+            EnsureModularComponentsAttached();
         }
 
         private void EnsureComponentsCached()
@@ -132,10 +101,30 @@ namespace VALYR.Multiplayer
             if (_networkRigidbody == null) _networkRigidbody = GetComponent<NetworkRigidbody>();
             if (_rigidbody == null) _rigidbody = GetComponent<Rigidbody>();
 
-            if (_doorController == null && DoorControllerType != null)
-                _doorController = GetComponent(DoorControllerType);
-            if (_lightController == null && LightControllerType != null)
-                _lightController = GetComponent(LightControllerType);
+            if (_netDoors == null) _netDoors = GetComponent<NetworkVehicleDoors>();
+            if (_netLights == null) _netLights = GetComponent<NetworkVehicleLights>();
+            if (_netInterior == null) _netInterior = GetComponent<NetworkVehicleInterior>();
+        }
+
+        private void EnsureModularComponentsAttached()
+        {
+            if (_netDoors == null)
+            {
+                _netDoors = GetComponent<NetworkVehicleDoors>();
+                if (_netDoors == null) _netDoors = gameObject.AddComponent<NetworkVehicleDoors>();
+            }
+
+            if (_netLights == null)
+            {
+                _netLights = GetComponent<NetworkVehicleLights>();
+                if (_netLights == null) _netLights = gameObject.AddComponent<NetworkVehicleLights>();
+            }
+
+            if (_netInterior == null)
+            {
+                _netInterior = GetComponent<NetworkVehicleInterior>();
+                if (_netInterior == null) _netInterior = gameObject.AddComponent<NetworkVehicleInterior>();
+            }
         }
 
         private void Start()
@@ -171,13 +160,12 @@ namespace VALYR.Multiplayer
             {
                 if (!localControl)
                 {
-                    // Prevent VehicleInputReader.OnDisable() from disabling the shared InputActionMap for the local player!
+                    // Prevent VehicleInputReader.OnDisable() from disabling the shared InputActionMap for the local player
                     SetPrivateField(_inputReader, "_actionMap", null);
                 }
                 _inputReader.enabled = localControl;
                 if (localControl)
                 {
-                    // Ensure local input reader action map is initialized and enabled
                     typeof(VehicleInputReader).GetMethod("InitializeInputActions",
                         BindingFlags.NonPublic | BindingFlags.Instance)?.Invoke(_inputReader, null);
                     var map = _inputReader.GetType().GetField("_actionMap", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(_inputReader) as UnityEngine.InputSystem.InputActionMap;
@@ -193,7 +181,6 @@ namespace VALYR.Multiplayer
             {
                 if (!localControl)
                 {
-                    // Prevent VehicleCameraController.OnDisable() from disabling the shared InputActionMap for the local player!
                     SetPrivateField(_cameraController, "_actionMap", null);
                 }
                 _cameraController.enabled = localControl;
@@ -207,13 +194,10 @@ namespace VALYR.Multiplayer
             if (_telemetryHUD != null)
                 _telemetryHUD.enabled = localControl;
 
-            // 4. Doors & Lights Input isolation
-            ConfigureDoorAndLightInput(localControl);
-
-            // 5. Rigidbody physics configuration
+            // 4. Rigidbody physics configuration
             if (_rigidbody != null)
             {
-                // Always dynamic so PhysX collision impulses between vehicles work realistically!
+                // Dynamic PhysX ensures realistic two-car collisions and momentum transfer
                 _rigidbody.isKinematic = false;
                 _rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
 
@@ -224,95 +208,21 @@ namespace VALYR.Multiplayer
                 }
                 else
                 {
-                    // Remote proxy: zero gravity to prevent sagging while keeping full dynamic collision responses!
+                    // Remote proxy: zero gravity to prevent sagging while keeping full dynamic collision responses
                     _rigidbody.useGravity = false;
                 }
             }
-        }
 
-        private void ConfigureDoorAndLightInput(bool localControl)
-        {
-            if (_doorController != null)
-            {
-                DoorUnsubscribeMethod?.Invoke(_doorController, null);
-                if (!localControl)
-                {
-                    // Assign dummy action reference so ProcessFallbackKeys() doesn't respond to local player keys (1, 2, 3, 4)
-                    var dummyAction = new UnityEngine.InputSystem.InputAction("ProxyDoorDummy");
-                    SetPrivateField(_doorController, "_leftDoorActionRef", dummyAction);
-                    SetPrivateField(_doorController, "_rightDoorActionRef", dummyAction);
-                    SetPrivateField(_doorController, "_hoodActionRef", dummyAction);
-                    SetPrivateField(_doorController, "_tailgateActionRef", dummyAction);
-                }
-                else
-                {
-                    SetPrivateField(_doorController, "_leftDoorActionRef", null);
-                    SetPrivateField(_doorController, "_rightDoorActionRef", null);
-                    SetPrivateField(_doorController, "_hoodActionRef", null);
-                    SetPrivateField(_doorController, "_tailgateActionRef", null);
-                    DoorResolveInputMethod?.Invoke(_doorController, null);
-                    DoorSubscribeMethod?.Invoke(_doorController, null);
-                }
-            }
-
-            if (_lightController != null)
-            {
-                LightUnsubscribeMethod?.Invoke(_lightController, null);
-                if (!localControl)
-                {
-                    var dummyAction = new UnityEngine.InputSystem.InputAction("ProxyLightDummy");
-                    SetPrivateField(_lightController, "_headlightsActionRef", dummyAction);
-                    SetPrivateField(_lightController, "_highBeamActionRef", dummyAction);
-                    SetPrivateField(_lightController, "_leftTurnActionRef", dummyAction);
-                    SetPrivateField(_lightController, "_rightTurnActionRef", dummyAction);
-                    SetPrivateField(_lightController, "_hazardActionRef", dummyAction);
-                }
-                else
-                {
-                    SetPrivateField(_lightController, "_headlightsActionRef", null);
-                    SetPrivateField(_lightController, "_highBeamActionRef", null);
-                    SetPrivateField(_lightController, "_leftTurnActionRef", null);
-                    SetPrivateField(_lightController, "_rightTurnActionRef", null);
-                    SetPrivateField(_lightController, "_hazardActionRef", null);
-                    LightResolveInputMethod?.Invoke(_lightController, null);
-                    LightSubscribeMethod?.Invoke(_lightController, null);
-                }
-            }
+            // 5. Notify modular addon components of authority changes
+            if (_netDoors != null) _netDoors.UpdateAuthorityState();
+            if (_netLights != null) _netLights.IsolateLightControllerInput();
+            if (_netInterior != null) _netInterior.UpdateAuthorityState();
         }
 
         private static void SetPrivateField(object target, string fieldName, object value)
         {
-            var field = target.GetType().GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Instance);
+            var field = target?.GetType().GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Instance);
             field?.SetValue(target, value);
-        }
-
-        private byte GetDoorFlags()
-        {
-            if (_doorController == null || DoorControllerType == null || IsOpenField == null)
-                return 0;
-
-            byte flags = 0;
-            if (GetDoorIsOpen(LeftDoorField)) flags |= 1 << 0;
-            if (GetDoorIsOpen(RightDoorField)) flags |= 1 << 1;
-            if (GetDoorIsOpen(HoodField)) flags |= 1 << 2;
-            if (GetDoorIsOpen(TailgateField)) flags |= 1 << 3;
-            return flags;
-        }
-
-        private bool GetDoorIsOpen(FieldInfo doorField)
-        {
-            if (doorField == null) return false;
-            var slot = doorField.GetValue(_doorController);
-            if (slot == null) return false;
-            return (bool)IsOpenField.GetValue(slot);
-        }
-
-        private void SetDoorIsOpen(FieldInfo doorField, bool open)
-        {
-            if (doorField == null) return;
-            var slot = doorField.GetValue(_doorController);
-            if (slot == null) return;
-            IsOpenField.SetValue(slot, open);
         }
 
         private void FixedUpdate()
@@ -323,46 +233,22 @@ namespace VALYR.Multiplayer
                 VehicleState state = _controller.State;
                 VehicleInput input = _controller.Input;
 
-                byte headlightMode = 0;
-                bool isHazard = false;
-                bool isLeftTurn = false;
-                bool isRightTurn = false;
-
-                if (_lightController != null)
-                {
-                    if (CurrentHeadlightModeProp != null)
-                        headlightMode = Convert.ToByte(CurrentHeadlightModeProp.GetValue(_lightController));
-                    if (IsHazardActiveProp != null)
-                        isHazard = (bool)IsHazardActiveProp.GetValue(_lightController);
-                    if (IsLeftTurnActiveProp != null)
-                        isLeftTurn = (bool)IsLeftTurnActiveProp.GetValue(_lightController);
-                    if (IsRightTurnActiveProp != null)
-                        isRightTurn = (bool)IsRightTurnActiveProp.GetValue(_lightController);
-                }
-
-                byte doorFlags = GetDoorFlags();
+                Vector3 vel = _rigidbody != null ? _rigidbody.linearVelocity : Vector3.zero;
+                float forwardSpeed = Vector3.Dot(vel, transform.forward);
 
                 var net = new VehicleNetworkState
                 {
                     EngineRpm = state.EngineRpm,
                     CurrentGear = state.CurrentGear,
                     SteerAngle = state.Wheels[0].SteerAngle,
+                    ForwardSpeed = forwardSpeed,
                     SuspLength0 = state.Wheels[0].SuspensionLength,
                     SuspLength1 = state.Wheels[1].SuspensionLength,
                     SuspLength2 = state.Wheels[2].SuspensionLength,
                     SuspLength3 = state.Wheels[3].SuspensionLength,
-                    RollAngle0 = state.Wheels[0].RotationAngle,
-                    RollAngle1 = state.Wheels[1].RotationAngle,
-                    RollAngle2 = state.Wheels[2].RotationAngle,
-                    RollAngle3 = state.Wheels[3].RotationAngle,
                     IsBraking = input.Brake > 0.05f || (state.CurrentGear == -1 && input.Throttle > 0.05f),
                     IsHandbraking = input.Handbrake > 0.5f,
-                    IsReversing = state.CurrentGear < 0,
-                    HeadlightMode = headlightMode,
-                    IsHazardActive = isHazard,
-                    IsLeftTurnActive = isLeftTurn,
-                    IsRightTurnActive = isRightTurn,
-                    DoorOpenFlags = doorFlags
+                    IsReversing = state.CurrentGear < 0
                 };
 
                 _networkState.value = net;
@@ -371,7 +257,7 @@ namespace VALYR.Multiplayer
 
         private void Update()
         {
-            // Direct keyboard input fallback for locally controlled driver (guarantees inputs work seamlessly per client)
+            // 1. Direct keyboard fallback for local driver
             if (IsLocallyControlled)
             {
                 var kb = UnityEngine.InputSystem.Keyboard.current;
@@ -382,120 +268,59 @@ namespace VALYR.Multiplayer
                     {
                         _cameraController.CycleNextCamera();
                     }
-
-                    // Door controls (1, 2, 3, 4 keys)
-                    if (_doorController != null)
-                    {
-                        if (kb.digit1Key.wasPressedThisFrame || kb.numpad1Key.wasPressedThisFrame)
-                            DoorToggleLeftMethod?.Invoke(_doorController, null);
-                        if (kb.digit2Key.wasPressedThisFrame || kb.numpad2Key.wasPressedThisFrame)
-                            DoorToggleRightMethod?.Invoke(_doorController, null);
-                        if (kb.digit3Key.wasPressedThisFrame || kb.numpad3Key.wasPressedThisFrame)
-                            DoorToggleHoodMethod?.Invoke(_doorController, null);
-                        if (kb.digit4Key.wasPressedThisFrame || kb.numpad4Key.wasPressedThisFrame)
-                            DoorToggleTailgateMethod?.Invoke(_doorController, null);
-                    }
-
-                    // Light controls (L, K, Q, E, H keys)
-                    if (_lightController != null)
-                    {
-                        if (kb.lKey.wasPressedThisFrame)
-                            LightCycleHeadlightsMethod?.Invoke(_lightController, null);
-                        if (kb.kKey.wasPressedThisFrame)
-                            LightToggleHighBeamMethod?.Invoke(_lightController, null);
-                        if (kb.qKey.wasPressedThisFrame)
-                            LightToggleLeftTurnMethod?.Invoke(_lightController, null);
-                        if (kb.eKey.wasPressedThisFrame)
-                            LightToggleRightTurnMethod?.Invoke(_lightController, null);
-                        if (kb.hKey.wasPressedThisFrame)
-                            LightToggleHazardMethod?.Invoke(_lightController, null);
-                    }
                 }
             }
 
-            // Remote proxies animate wheels, doors, and lights using received network state
+            // 2. Remote proxy: render silky-smooth wheel visuals
             if (isSpawned && !isOwner)
             {
+                float dt = Time.deltaTime;
                 VehicleNetworkState net = _networkState.value;
 
-                // 1. Wheel visuals & steering
+                // Smooth steer angle exponential interpolation
+                _smoothedSteerAngle = Mathf.Lerp(_smoothedSteerAngle, net.SteerAngle, 1f - Mathf.Exp(-22f * dt));
+
+                // Continuous wheel roll integration from linear velocity (eliminates 30Hz frame jumps)
+                float speed = net.ForwardSpeed;
+                if (_rigidbody != null && _rigidbody.linearVelocity.sqrMagnitude > 0.01f)
+                {
+                    speed = Vector3.Dot(_rigidbody.linearVelocity, transform.forward);
+                }
+
+                float wheelRadius = _controller != null && _controller.WheelRadius > 0.01f ? _controller.WheelRadius : 0.37f;
+                _proxyWheelRollAngle += (speed / wheelRadius) * dt;
+                if (_proxyWheelRollAngle > Mathf.PI * 2f) _proxyWheelRollAngle -= Mathf.PI * 2f;
+                else if (_proxyWheelRollAngle < -Mathf.PI * 2f) _proxyWheelRollAngle += Mathf.PI * 2f;
+
                 if (_visualView != null)
                 {
                     VehicleState proxyState = default;
                     proxyState.EngineRpm = net.EngineRpm;
                     proxyState.CurrentGear = net.CurrentGear;
 
-                    proxyState.Wheels.FL.SteerAngle = net.SteerAngle;
-                    proxyState.Wheels.FR.SteerAngle = net.SteerAngle;
+                    proxyState.Wheels.FL.SteerAngle = _smoothedSteerAngle;
+                    proxyState.Wheels.FR.SteerAngle = _smoothedSteerAngle;
                     proxyState.Wheels.RL.SteerAngle = 0f;
                     proxyState.Wheels.RR.SteerAngle = 0f;
 
-                    // Fallback to nominal suspension length (0.38f) if not yet received from network
+                    // Fallback to nominal suspension length (0.38f) if not yet received
                     proxyState.Wheels.FL.SuspensionLength = net.SuspLength0 > 0.001f ? net.SuspLength0 : 0.38f;
                     proxyState.Wheels.FR.SuspensionLength = net.SuspLength1 > 0.001f ? net.SuspLength1 : 0.38f;
                     proxyState.Wheels.RL.SuspensionLength = net.SuspLength2 > 0.001f ? net.SuspLength2 : 0.38f;
                     proxyState.Wheels.RR.SuspensionLength = net.SuspLength3 > 0.001f ? net.SuspLength3 : 0.38f;
 
-                    proxyState.Wheels.FL.RotationAngle = net.RollAngle0;
-                    proxyState.Wheels.FR.RotationAngle = net.RollAngle1;
-                    proxyState.Wheels.RL.RotationAngle = net.RollAngle2;
-                    proxyState.Wheels.RR.RotationAngle = net.RollAngle3;
+                    proxyState.Wheels.FL.RotationAngle = _proxyWheelRollAngle;
+                    proxyState.Wheels.FR.RotationAngle = _proxyWheelRollAngle;
+                    proxyState.Wheels.RL.RotationAngle = _proxyWheelRollAngle;
+                    proxyState.Wheels.RR.RotationAngle = _proxyWheelRollAngle;
 
-                    _visualView.UpdateWheelsView(in proxyState, Time.deltaTime);
-                }
-
-                // 2. Door visuals
-                if (_doorController != null && IsOpenField != null)
-                {
-                    SetDoorIsOpen(LeftDoorField, (net.DoorOpenFlags & (1 << 0)) != 0);
-                    SetDoorIsOpen(RightDoorField, (net.DoorOpenFlags & (1 << 1)) != 0);
-                    SetDoorIsOpen(HoodField, (net.DoorOpenFlags & (1 << 2)) != 0);
-                    SetDoorIsOpen(TailgateField, (net.DoorOpenFlags & (1 << 3)) != 0);
-                }
-
-                // 3. Headlight mode
-                if (_lightController != null && SetHeadlightModeMethod != null && CurrentHeadlightModeProp != null)
-                {
-                    byte currentMode = Convert.ToByte(CurrentHeadlightModeProp.GetValue(_lightController));
-                    if (currentMode != net.HeadlightMode)
-                    {
-                        var paramType = SetHeadlightModeMethod.GetParameters()[0].ParameterType;
-                        var enumVal = Enum.ToObject(paramType, net.HeadlightMode);
-                        SetHeadlightModeMethod.Invoke(_lightController, new[] { enumVal });
-                    }
-                }
-            }
-        }
-
-        private void LateUpdate()
-        {
-            // Apply brake, reverse, and handbrake visual lights on remote proxies in LateUpdate
-            if (isSpawned && !isOwner && _lightController != null)
-            {
-                VehicleNetworkState net = _networkState.value;
-                if (BrakeLightsField != null)
-                    SetGroupActive(BrakeLightsField.GetValue(_lightController) as GameObject[], net.IsBraking || net.IsHandbraking);
-                if (ReverseLightsField != null)
-                    SetGroupActive(ReverseLightsField.GetValue(_lightController) as GameObject[], net.IsReversing);
-                if (HandbrakeLightsField != null)
-                    SetGroupActive(HandbrakeLightsField.GetValue(_lightController) as GameObject[], net.IsHandbraking);
-            }
-        }
-
-        private static void SetGroupActive(GameObject[] group, bool active)
-        {
-            if (group == null) return;
-            for (int i = 0; i < group.Length; i++)
-            {
-                if (group[i] != null && group[i].activeSelf != active)
-                {
-                    group[i].SetActive(active);
+                    _visualView.UpdateWheelsView(in proxyState, dt);
                 }
             }
         }
 
         /// <summary>
-        /// Binds the scene Cinemachine cameras to follow this vehicle for the local player,
+        /// Binds scene Cinemachine cameras to follow this vehicle for the local player,
         /// initializes input actions, and configures all camera slots so camera switching (C key) functions properly.
         /// </summary>
         public void RebindCinemachineCameras()
@@ -554,7 +379,6 @@ namespace VALYR.Multiplayer
             // Populate _cameraSlots on VehicleCameraController so "Change Camera" (C key) works seamlessly
             if (_cameraController != null)
             {
-                // Ensure Input Actions are initialized and action map enabled on camera controller
                 typeof(VehicleCameraController).GetMethod("InitializeInputActions",
                     BindingFlags.NonPublic | BindingFlags.Instance)?.Invoke(_cameraController, null);
 
