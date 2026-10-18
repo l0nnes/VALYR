@@ -37,6 +37,8 @@ namespace VALYR.Multiplayer
 
         private void Awake()
         {
+            VehiclePredictedRegistration.Register();
+
             if (Instance != null && Instance != this)
             {
                 Destroy(gameObject);

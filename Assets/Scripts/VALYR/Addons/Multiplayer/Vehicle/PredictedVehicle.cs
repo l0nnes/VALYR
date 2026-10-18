@@ -2,6 +2,7 @@ using System;
 using System.Reflection;
 using UnityEngine;
 using PurrNet;
+using PurrNet.Packing;
 using PurrNet.Prediction;
 using VALYR.Core;
 using VALYR.Runtime;
@@ -33,6 +34,8 @@ namespace VALYR.Multiplayer
 
         private void Awake()
         {
+            VehiclePredictedRegistration.Register();
+
             _controller = GetComponent<VehicleController>();
             _inputReader = GetComponent<VehicleInputReader>();
             _predictedRigidbody = GetComponent<PredictedRigidbody>();
@@ -48,6 +51,16 @@ namespace VALYR.Multiplayer
                 // Disable controller's default MonoBehaviour FixedUpdate so simulation runs exclusively inside PurrDiction Simulate ticks
                 _controller.enabled = false;
             }
+        }
+
+        protected override void WriteDeltaState(BitPacker packer, in VehiclePredictedState baseline, in VehiclePredictedState current)
+        {
+            VehiclePredictedRegistration.WritePredictedStateDelta(packer, baseline, current);
+        }
+
+        protected override void ReadDeltaState(BitPacker packer, in VehiclePredictedState baseline, ref VehiclePredictedState state)
+        {
+            VehiclePredictedRegistration.ReadPredictedStateDelta(packer, baseline, ref state);
         }
 
         protected override void LateAwake()
@@ -95,8 +108,10 @@ namespace VALYR.Multiplayer
             _controller.SimulateStep(in vi, ref state.CoreState, delta);
         }
 
-        private void Update()
+        protected override void Update()
         {
+            base.Update();
+
             // Present smooth wheel visuals from current corrected predicted state
             if (_visualView != null)
             {
