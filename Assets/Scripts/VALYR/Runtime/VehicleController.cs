@@ -360,6 +360,10 @@ namespace VALYR.Runtime
                 // 5. Yellow zone: TargetLength to MaxLength (rebound / droop travel)
                 Gizmos.color = Color.yellow;
                 Gizmos.DrawLine(mountPoint + suspDown * targetLen, mountPoint + suspDown * maxLen);
+                Gizmos.DrawWireSphere(mountPoint + suspDown * maxLen, 0.025f);
+
+                // 6. Maximum reach to bottom of tire at full droop
+                Gizmos.color = new Color(1f, 0.92f, 0.016f, 0.4f);
                 Gizmos.DrawLine(mountPoint + suspDown * maxLen, mountPoint + suspDown * (maxLen + radius));
 
                 if (Application.isPlaying)
