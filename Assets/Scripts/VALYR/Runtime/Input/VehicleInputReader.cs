@@ -6,19 +6,41 @@ using VALYR.Core;
 namespace VALYR.Runtime.Input
 {
     /// <summary>
-    /// Vehicle driver input reader built on top of the Unity Input System.
-    /// Supports keyboard (WASD / Arrow keys / Space) and gamepad (analog triggers/stick),
-    /// with smooth non-linear filtering for keyboard digital inputs.
+    /// Vehicle driver input reader built on top of the Unity New Input System (Input Actions).
+    /// Reads from the "Driving" ActionMap (Throttle/Brake, Steering, Handbrake, Gearbox, Clutch),
+    /// supporting Keyboard, Gamepad, and steering wheels with smooth progressive filtering.
     /// </summary>
     [Serializable]
     public class VehicleInputReader : MonoBehaviour
     {
-        [Header("Input Devices")]
-        [Tooltip("Enable input polling from keyboard.")]
-        public bool EnableKeyboard = true;
+        [Header("New Input System Actions")]
+        [Tooltip("Input Actions asset (e.g. GameInput). Can be assigned in Inspector or loaded automatically.")]
+        [SerializeField] private InputActionAsset _inputActions;
 
-        [Tooltip("Enable input polling from gamepad.")]
-        public bool EnableGamepad = true;
+        [Tooltip("Action map name for driving controls.")]
+        [SerializeField] private string _actionMapName = "Driving";
+
+        [Tooltip("1D Axis action name (-1 = Brake, +1 = Throttle).")]
+        [SerializeField] private string _throttleBrakeActionName = "Throttle / Brake";
+
+        [Tooltip("1D Axis action name (-1 = Left, +1 = Right).")]
+        [SerializeField] private string _steeringActionName = "Steering";
+
+        [Tooltip("Button action name for handbrake.")]
+        [SerializeField] private string _handbrakeActionName = "Handbrake";
+
+        [Tooltip("Button action name for shifting gear up.")]
+        [SerializeField] private string _gearUpActionName = "Gearbox Up";
+
+        [Tooltip("Button action name for shifting gear down.")]
+        [SerializeField] private string _gearDownActionName = "Gearbox Down";
+
+        [Tooltip("Button action name for clutch.")]
+        [SerializeField] private string _clutchActionName = "Clutch";
+
+        [Header("Fallback Polling Options")]
+        [Tooltip("Enable direct hardware polling fallback if Input Action is missing.")]
+        public bool EnableFallback = true;
 
         [Header("Digital Keyboard Smoothing")]
         [Tooltip("Steering wheel angle build-up rate when holding turn key (1/s, typical: 3.0 - 6.0).")]
@@ -37,6 +59,15 @@ namespace VALYR.Runtime.Input
         [Range(1f, 25f)]
         public float BrakeAttackSpeed = 10.0f;
 
+        // Resolved Action Map and Actions
+        private InputActionMap _actionMap;
+        private InputAction _throttleBrakeAction;
+        private InputAction _steeringAction;
+        private InputAction _handbrakeAction;
+        private InputAction _gearUpAction;
+        private InputAction _gearDownAction;
+        private InputAction _clutchAction;
+
         // Internal smoothed values
         private float _smoothThrottle;
         private float _smoothSteer;
@@ -44,6 +75,69 @@ namespace VALYR.Runtime.Input
         private float _smoothHandbrake;
 
         public VehicleInput CurrentInput { get; private set; }
+        public InputActionAsset InputActions => _inputActions;
+        public bool ShiftUpTriggered => _gearUpAction?.WasPressedThisFrame() ?? false;
+        public bool ShiftDownTriggered => _gearDownAction?.WasPressedThisFrame() ?? false;
+        public float ClutchValue => _clutchAction?.ReadValue<float>() ?? 0f;
+
+        public void SetInputActionsAsset(InputActionAsset asset)
+        {
+            if (_inputActions != null && _actionMap != null)
+            {
+                _actionMap.Disable();
+            }
+
+            _inputActions = asset;
+            InitializeInputActions();
+        }
+
+        private void Awake()
+        {
+            InitializeInputActions();
+        }
+
+        private void OnEnable()
+        {
+            if (_actionMap != null && !_actionMap.enabled)
+            {
+                _actionMap.Enable();
+            }
+        }
+
+        private void OnDisable()
+        {
+            _actionMap?.Disable();
+        }
+
+        private void InitializeInputActions()
+        {
+            if (_inputActions == null)
+            {
+#if UNITY_EDITOR
+                // Auto-load GameInput.inputactions if not explicitly wired in inspector
+                _inputActions = UnityEditor.AssetDatabase.LoadAssetAtPath<InputActionAsset>("Assets/GameInput.inputactions");
+#endif
+            }
+
+            if (_inputActions != null)
+            {
+                _actionMap = _inputActions.FindActionMap(_actionMapName);
+                if (_actionMap != null)
+                {
+                    _throttleBrakeAction = _actionMap.FindAction(_throttleBrakeActionName);
+                    _steeringAction = _actionMap.FindAction(_steeringActionName);
+                    _handbrakeAction = _actionMap.FindAction(_handbrakeActionName);
+                    _gearUpAction = _actionMap.FindAction(_gearUpActionName);
+                    _gearDownAction = _actionMap.FindAction(_gearDownActionName);
+                    _clutchAction = _actionMap.FindAction(_clutchActionName);
+
+                    if (isActiveAndEnabled)
+                    {
+                        _actionMap.Enable();
+                    }
+                }
+            }
+        }
 
         public VehicleInput ReadInput(float dt)
         {
@@ -51,51 +145,65 @@ namespace VALYR.Runtime.Input
             float targetSteer = 0f;
             float targetBrake = 0f;
             float targetHandbrake = 0f;
+            bool actionsRead = false;
 
-            // 1. Keyboard polling
-            if (EnableKeyboard && Keyboard.current != null)
+            // 1. Read from Unity New Input System Actions
+            if (_actionMap != null && _actionMap.enabled)
             {
-                var kb = Keyboard.current;
+                if (_throttleBrakeAction != null)
+                {
+                    float tb = _throttleBrakeAction.ReadValue<float>();
+                    if (tb > 0.001f)
+                    {
+                        targetThrottle = tb;
+                    }
+                    else if (tb < -0.001f)
+                    {
+                        targetBrake = -tb;
+                    }
+                    actionsRead = true;
+                }
 
-                if (kb.wKey.isPressed || kb.upArrowKey.isPressed)
-                    targetThrottle += 1f;
+                if (_steeringAction != null)
+                {
+                    targetSteer = _steeringAction.ReadValue<float>();
+                    actionsRead = true;
+                }
 
-                if (kb.sKey.isPressed || kb.downArrowKey.isPressed)
-                    targetBrake += 1f;
-
-                if (kb.aKey.isPressed || kb.leftArrowKey.isPressed)
-                    targetSteer -= 1f;
-
-                if (kb.dKey.isPressed || kb.rightArrowKey.isPressed)
-                    targetSteer += 1f;
-
-                if (kb.spaceKey.isPressed)
-                    targetHandbrake += 1f;
+                if (_handbrakeAction != null)
+                {
+                    targetHandbrake = _handbrakeAction.IsPressed() ? 1f : 0f;
+                    actionsRead = true;
+                }
             }
 
-            // 2. Gamepad polling
-            if (EnableGamepad && Gamepad.current != null)
+            // 2. Hardware fallback polling if actions not active
+            if (!actionsRead && EnableFallback)
             {
-                var gp = Gamepad.current;
+                if (Keyboard.current != null)
+                {
+                    var kb = Keyboard.current;
+                    if (kb.wKey.isPressed || kb.upArrowKey.isPressed) targetThrottle += 1f;
+                    if (kb.sKey.isPressed || kb.downArrowKey.isPressed) targetBrake += 1f;
+                    if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) targetSteer -= 1f;
+                    if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) targetSteer += 1f;
+                    if (kb.spaceKey.isPressed) targetHandbrake += 1f;
+                }
 
-                // Right trigger: throttle
-                float rt = gp.rightTrigger.ReadValue();
-                if (rt > 0.05f)
-                    targetThrottle = Mathf.Max(targetThrottle, rt);
+                if (Gamepad.current != null)
+                {
+                    var gp = Gamepad.current;
+                    float rt = gp.rightTrigger.ReadValue();
+                    if (rt > 0.05f) targetThrottle = Mathf.Max(targetThrottle, rt);
 
-                // Left trigger: brake
-                float lt = gp.leftTrigger.ReadValue();
-                if (lt > 0.05f)
-                    targetBrake = Mathf.Max(targetBrake, lt);
+                    float lt = gp.leftTrigger.ReadValue();
+                    if (lt > 0.05f) targetBrake = Mathf.Max(targetBrake, lt);
 
-                // Left stick: steering
-                float stickX = gp.leftStick.x.ReadValue();
-                if (Mathf.Abs(stickX) > 0.08f)
-                    targetSteer = stickX;
+                    float stickX = gp.leftStick.x.ReadValue();
+                    if (Mathf.Abs(stickX) > 0.08f) targetSteer = stickX;
 
-                // Button A (South) or Right Shoulder: handbrake
-                if (gp.buttonSouth.isPressed || gp.rightShoulder.isPressed)
-                    targetHandbrake = 1f;
+                    if (gp.buttonSouth.isPressed || gp.rightShoulder.isPressed) targetHandbrake = 1f;
+                }
             }
 
             // 3. Smooth digital inputs towards targets

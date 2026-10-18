@@ -65,7 +65,9 @@ namespace VALYR.Runtime.UI
                 float speedKmh = speedMs * 3.6f;
 
                 // Header
-                GUILayout.Label($"<b>VALYR VEHICLE TELEMETRY</b> (Press [F1] to toggle)", _headerStyle);
+                var camCtrl = GetComponent<VALYR.Runtime.Cameras.VehicleCameraController>() ?? GetComponentInChildren<VALYR.Runtime.Cameras.VehicleCameraController>();
+                string camText = camCtrl != null ? camCtrl.CurrentModeName : "Default";
+                GUILayout.Label($"<b>VALYR VEHICLE TELEMETRY</b> (Press [F1] to toggle) | <b>Camera:</b> {camText} [C / Gamepad Y]", _headerStyle);
                 GUILayout.Space(4);
 
                 // 1. General vehicle parameters
