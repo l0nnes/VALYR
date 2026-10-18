@@ -22,6 +22,13 @@ namespace VALYR.Multiplayer
         public float SuspLength2;
         public float SuspLength3;
 
+        // Wheel hub rotational angular velocities in rad/s (FL, FR, RL, RR)
+        // Enables accurate wheel lockups under braking/handbrake and realistic burnouts
+        public float WheelOmega0;
+        public float WheelOmega1;
+        public float WheelOmega2;
+        public float WheelOmega3;
+
         // Visual cues & driving states
         public bool IsBraking;
         public bool IsHandbraking;

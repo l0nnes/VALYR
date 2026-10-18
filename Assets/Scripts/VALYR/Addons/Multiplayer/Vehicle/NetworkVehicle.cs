@@ -19,7 +19,7 @@ namespace VALYR.Multiplayer
     /// - Dynamic PhysX Rigidbody configuration and collision response without belly sagging
     /// - Client-owner authority management and input isolation
     /// - Cinemachine camera rig binding (all 5 camera slots with C key switching)
-    /// - Silky-smooth wheel visuals (continuous roll integration and smooth steer angle lerp)
+    /// - Silky-smooth wheel visuals (independent per-wheel angular velocity roll integration and smooth steer angle lerp)
     /// 
     /// Visual addons (doors, lights, interior controls & dashboard) are managed by dedicated
     /// modular components: NetworkVehicleDoors, NetworkVehicleLights, NetworkVehicleInterior.
@@ -49,7 +49,10 @@ namespace VALYR.Multiplayer
 
         // Smooth wheel visual interpolation for remote proxies
         private float _smoothedSteerAngle;
-        private float _proxyWheelRollAngle;
+        private float _proxyWheelRoll0;
+        private float _proxyWheelRoll1;
+        private float _proxyWheelRoll2;
+        private float _proxyWheelRoll3;
 
         private static readonly FieldInfo CameraSlotsField =
             typeof(VehicleCameraController).GetField("_cameraSlots", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -246,6 +249,10 @@ namespace VALYR.Multiplayer
                     SuspLength1 = state.Wheels[1].SuspensionLength,
                     SuspLength2 = state.Wheels[2].SuspensionLength,
                     SuspLength3 = state.Wheels[3].SuspensionLength,
+                    WheelOmega0 = state.Wheels[0].AngularVelocity,
+                    WheelOmega1 = state.Wheels[1].AngularVelocity,
+                    WheelOmega2 = state.Wheels[2].AngularVelocity,
+                    WheelOmega3 = state.Wheels[3].AngularVelocity,
                     IsBraking = input.Brake > 0.05f || (state.CurrentGear == -1 && input.Throttle > 0.05f),
                     IsHandbraking = input.Handbrake > 0.5f,
                     IsReversing = state.CurrentGear < 0
@@ -280,17 +287,17 @@ namespace VALYR.Multiplayer
                 // Smooth steer angle exponential interpolation
                 _smoothedSteerAngle = Mathf.Lerp(_smoothedSteerAngle, net.SteerAngle, 1f - Mathf.Exp(-22f * dt));
 
-                // Continuous wheel roll integration from linear velocity (eliminates 30Hz frame jumps)
-                float speed = net.ForwardSpeed;
-                if (_rigidbody != null && _rigidbody.linearVelocity.sqrMagnitude > 0.01f)
-                {
-                    speed = Vector3.Dot(_rigidbody.linearVelocity, transform.forward);
-                }
+                // Continuous per-wheel roll integration using exact physical angular velocity
+                // Accurately locks rear wheels on handbrake, locks wheels under heavy braking, and spins on burnouts
+                _proxyWheelRoll0 += net.WheelOmega0 * dt;
+                _proxyWheelRoll1 += net.WheelOmega1 * dt;
+                _proxyWheelRoll2 += net.WheelOmega2 * dt;
+                _proxyWheelRoll3 += net.WheelOmega3 * dt;
 
-                float wheelRadius = _controller != null && _controller.WheelRadius > 0.01f ? _controller.WheelRadius : 0.37f;
-                _proxyWheelRollAngle += (speed / wheelRadius) * dt;
-                if (_proxyWheelRollAngle > Mathf.PI * 2f) _proxyWheelRollAngle -= Mathf.PI * 2f;
-                else if (_proxyWheelRollAngle < -Mathf.PI * 2f) _proxyWheelRollAngle += Mathf.PI * 2f;
+                _proxyWheelRoll0 = Mathf.Repeat(_proxyWheelRoll0, Mathf.PI * 2f);
+                _proxyWheelRoll1 = Mathf.Repeat(_proxyWheelRoll1, Mathf.PI * 2f);
+                _proxyWheelRoll2 = Mathf.Repeat(_proxyWheelRoll2, Mathf.PI * 2f);
+                _proxyWheelRoll3 = Mathf.Repeat(_proxyWheelRoll3, Mathf.PI * 2f);
 
                 if (_visualView != null)
                 {
@@ -309,10 +316,10 @@ namespace VALYR.Multiplayer
                     proxyState.Wheels.RL.SuspensionLength = net.SuspLength2 > 0.001f ? net.SuspLength2 : 0.38f;
                     proxyState.Wheels.RR.SuspensionLength = net.SuspLength3 > 0.001f ? net.SuspLength3 : 0.38f;
 
-                    proxyState.Wheels.FL.RotationAngle = _proxyWheelRollAngle;
-                    proxyState.Wheels.FR.RotationAngle = _proxyWheelRollAngle;
-                    proxyState.Wheels.RL.RotationAngle = _proxyWheelRollAngle;
-                    proxyState.Wheels.RR.RotationAngle = _proxyWheelRollAngle;
+                    proxyState.Wheels.FL.RotationAngle = _proxyWheelRoll0;
+                    proxyState.Wheels.FR.RotationAngle = _proxyWheelRoll1;
+                    proxyState.Wheels.RL.RotationAngle = _proxyWheelRoll2;
+                    proxyState.Wheels.RR.RotationAngle = _proxyWheelRoll3;
 
                     _visualView.UpdateWheelsView(in proxyState, dt);
                 }
