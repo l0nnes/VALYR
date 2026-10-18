@@ -1,3 +1,17 @@
+# [1.1.0](https://github.com/l0nnes/VALYR/compare/v1.0.1...v1.1.0) (2026-10-18)
+
+
+### Bug Fixes
+
+* **camera:** smooth look orbit damping and proper mouse/stick sensitivity scaling ([1980374](https://github.com/l0nnes/VALYR/commit/19803749d59d1e8ac108cbb3069cd02c8ae696bb))
+* **physics:** implement static stiction hold and eliminate low-speed slope drift and wheel slip chatter ([e937259](https://github.com/l0nnes/VALYR/commit/e937259b06b58b94999d667c8438ede29bbeee5e))
+* **powertrain:** implement Auto Hold, eliminate reverse brake-fighting bug, and make reverse shift responsive ([73adce6](https://github.com/l0nnes/VALYR/commit/73adce6b135ce242be7ea193ce0e0df89f4b6cb9))
+
+
+### Features
+
+* **camera, input:** add Cinemachine multi-camera system and migrate vehicle input to New Input System ([34faa4f](https://github.com/l0nnes/VALYR/commit/34faa4fcb7c613fd23a759de698d0c7f2779be9b))
+
 ## [1.0.1](https://github.com/l0nnes/VALYR/compare/v1.0.0...v1.0.1) (2026-10-18)
 
 
