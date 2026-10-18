@@ -16,7 +16,7 @@
   Engineered with strict separation of concerns, pluggable C# subsystems, multi-ray curb detection, and equilibrium-preloaded suspension dynamics.
 </p>
 
-[📖 Read the Documentation](https://l0nnes.github.io/VALYR/) • [🚀 Quick Start](#-quick-start) • [🧩 Architecture](#-architecture--pipeline) • [📦 Semantic Release](#-automated-release--versioning)
+[📖 Read the Documentation](https://l0nnes.github.io/VALYR/) • [🚀 Quick Start](#-quick-start) • [🧩 Architecture](#-architecture--pipeline) • [🌐 Multiplayer Addon](#-multiplayer-addon) • [📦 Semantic Release](#-automated-release--versioning)
 
 </div>
 
@@ -76,6 +76,25 @@ flowchart TD
 | **Powertrain** | `IEngineModule` & `ITransmissionModule` | `ArcadeEngineModule`, `SimpleTransmissionModule` | Torque curve evaluation, flywheel inertia, rev limiter, torque converter launch, and auto-shifting. |
 | **Tires** | `ITireModule` | `BrushTireModule` | Analytical brush friction mechanics, combined slip (`sx, sy`), and grip saturation. |
 | **Assists** | `IChassisAssistModule`, `IWheelAssistModule` | `AntiRollBarModule`, `AbsModule`, `TcsModule` | Anti-roll weight transfer, anti-lock brake pulsation, and traction control slip regulation. |
+
+---
+
+## 🌐 Multiplayer Addon (`feat/multiplayer-addon`)
+
+VALYR includes an optional **Multiplayer Addon** maintained on the `feat/multiplayer-addon` branch, providing server-authoritative client-side prediction, rollback simulation, and networked vehicle synchronization powered by [PurrNet](https://purrnet.dev) and [PurrDiction](https://github.com/PurrNet/PurrDiction).
+
+### Branch Strategy & Rebase Workflow:
+* **`master`**: Core vehicle simulation (Single-player, zero networking dependencies).
+* **`feat/multiplayer-addon`**: Core + Multiplayer Addon (`VALYR.Multiplayer` assembly).
+
+Syncing Core changes into the Multiplayer Addon:
+```bash
+git checkout feat/multiplayer-addon
+git rebase master
+git push origin feat/multiplayer-addon --force-with-lease
+```
+
+For detailed architecture, state replication, and prediction setup, refer to the [Multiplayer Addon Documentation](https://l0nnes.github.io/VALYR/guide/multiplayer-addon).
 
 ---
 

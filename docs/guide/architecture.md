@@ -56,3 +56,17 @@ sequenceDiagram
   Stores single-wheel kinematics (`AngularVelocity`, `SteerAngle`, `RotationAngle`), contact data (`HasContact`, `ContactPoint`, `ContactNormal`, `SuspensionLength`, `SurfaceVelocity`), and dynamics (`NormalLoad`, `SlipRatio`, `SlipAngle`, `TireForce`, `SkidIntensity`).
 * **`VehicleChassisConfig`**:
   Immutable geometric configuration passed down to modules containing curb mass, wheel rolling radii, and local wheel mount offsets.
+
+---
+
+## 4. Modular Addons & Branch Architecture
+
+To keep the core physics engine lightweight, zero-dependency, and accessible for single-player projects, optional extensions are maintained as modular addons:
+
+* **Core (`master`)**:
+  Contains `VALYR.Core`, `VALYR.Modules`, `VALYR.Runtime`, and `VALYR.Editor`. Clean, self-contained vehicle simulation without external networking overhead.
+* **Multiplayer Addon (`feat/multiplayer-addon`)**:
+  Builds on top of Core using [PurrNet](https://purrnet.dev) & [PurrDiction](https://github.com/PurrNet/PurrDiction) in `VALYR.Multiplayer.asmdef`. Features server-authoritative client-side prediction, kinematic proxy collisions, and networked vehicle parts (doors, lights, cockpit).
+
+For detailed setup, rebase workflow, and prediction mechanics, see the [Multiplayer Addon Guide](/guide/multiplayer-addon).
+

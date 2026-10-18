@@ -13,7 +13,8 @@ export default withMermaid(
       { text: 'Quick Start', link: '/guide/quick-start' },
       { text: 'Architecture', link: '/guide/architecture' },
       { text: 'Modules', link: '/guide/wheel-contact' },
-      { text: 'Presets', link: '/guide/presets' }
+      { text: 'Presets', link: '/guide/presets' },
+      { text: 'Multiplayer Addon', link: '/guide/multiplayer-addon' }
     ],
     sidebar: [
       {
@@ -32,6 +33,12 @@ export default withMermaid(
           { text: 'Brush Tires & Assists (ARB/ABS/TCS)', link: '/guide/tires-and-assists' },
           { text: 'Powertrain & Steering', link: '/guide/powertrain-steering' },
           { text: 'Visual View & Telemetry HUD', link: '/guide/visual-and-telemetry' }
+        ]
+      },
+      {
+        text: 'Modular Addons',
+        items: [
+          { text: 'Multiplayer (PurrNet & PurrDiction)', link: '/guide/multiplayer-addon' }
         ]
       },
       {

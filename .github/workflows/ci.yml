@@ -1,0 +1,41 @@
+name: CI
+ 
+on:
+  push:
+    branches:
+      - master
+      - main
+      - feat/multiplayer-addon
+  pull_request:
+    branches:
+      - master
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate Docs & Packaging
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      - name: Install Dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Validate VitePress Documentation Build
+        run: npm run docs:build
+
+      - name: Validate Asset Packaging Script
+        run: node scripts/pack-asset.js
