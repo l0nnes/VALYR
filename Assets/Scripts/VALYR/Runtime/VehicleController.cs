@@ -327,15 +327,40 @@ namespace VALYR.Runtime
             {
                 Vector3 mountPoint = bodyPos + bodyRot * ChassisConfig.WheelOffsets[i];
                 float radius = ChassisConfig.WheelRadii[i];
-                float restLength = 0.35f;
+
+                float minLen = 0.35f;
+                float targetLen = 0.44f;
+                float maxLen = 0.58f;
 
                 if (Suspension is RaycastSuspensionModule raySusp)
                 {
-                    restLength = (i == 0 || i == 1) ? raySusp.FrontAxle.RestLength : raySusp.RearAxle.RestLength;
+                    ref readonly var ax = ref (i < 2 ? ref raySusp.FrontAxle : ref raySusp.RearAxle);
+                    minLen = ax.MinLength;
+                    targetLen = ax.TargetLength;
+                    maxLen = ax.MaxLength;
                 }
 
+                // 1. Anchor Mount
+                Gizmos.color = Color.white;
+                Gizmos.DrawSphere(mountPoint, 0.025f);
+
+                // 2. Red zone: Anchor to MinLength (bump stop limit - wheel arch boundary)
+                Gizmos.color = Color.red;
+                Gizmos.DrawLine(mountPoint, mountPoint + suspDown * minLen);
+                Gizmos.DrawWireSphere(mountPoint + suspDown * minLen, 0.02f);
+
+                // 3. Cyan zone: MinLength to TargetLength (bump travel)
+                Gizmos.color = Color.cyan;
+                Gizmos.DrawLine(mountPoint + suspDown * minLen, mountPoint + suspDown * targetLen);
+
+                // 4. Target position marker (green)
+                Gizmos.color = Color.green;
+                Gizmos.DrawWireSphere(mountPoint + suspDown * targetLen, 0.03f);
+
+                // 5. Yellow zone: TargetLength to MaxLength (rebound / droop travel)
                 Gizmos.color = Color.yellow;
-                Gizmos.DrawLine(mountPoint, mountPoint + suspDown * (restLength + radius));
+                Gizmos.DrawLine(mountPoint + suspDown * targetLen, mountPoint + suspDown * maxLen);
+                Gizmos.DrawLine(mountPoint + suspDown * maxLen, mountPoint + suspDown * (maxLen + radius));
 
                 if (Application.isPlaying)
                 {
@@ -343,7 +368,7 @@ namespace VALYR.Runtime
                     if (ws.HasContact)
                     {
                         Gizmos.color = Color.green;
-                        Gizmos.DrawSphere(ws.ContactPoint, 0.05f);
+                        Gizmos.DrawSphere(ws.ContactPoint, 0.04f);
                         Gizmos.color = Color.red;
                         Gizmos.DrawRay(ws.ContactPoint, ws.TireForce * 0.001f);
                     }

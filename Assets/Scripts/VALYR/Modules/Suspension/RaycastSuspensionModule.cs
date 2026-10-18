@@ -8,64 +8,74 @@ namespace VALYR.Modules.Suspension
 {
     /// <summary>
     /// Physical suspension axle configuration (front or rear).
+    /// Parameterized by physical damper lengths from the anchor point down to the wheel hub center.
     /// </summary>
     [Serializable]
     public struct SuspensionAxleSettings
     {
-        [Tooltip("Unloaded rest length of the spring in meters (e.g. 0.35m).")]
-        [Range(0.1f, 0.8f)]
-        public float RestLength;
+        [Header("Damper Length Limits (Anchor to Wheel Hub Center)")]
+        [Tooltip("Target ride height length of the damper in meters (nominal equilibrium position where spring is at rest).")]
+        [Range(0.20f, 1.0f)]
+        public float TargetLength;
 
-        [Tooltip("Maximum allowable suspension travel / compression distance in meters (e.g. 0.22m for road car, 0.35m for SUV).")]
-        [Range(0.05f, 0.6f)]
-        public float MaxTravel;
+        [Tooltip("Minimum allowable damper length in meters (hard bump stop limit). The wheel physically CANNOT rise closer to the anchor than this. Must be greater than or equal to wheel radius to prevent arch clipping.")]
+        [Range(0.15f, 0.80f)]
+        public float MinLength;
 
-        [Tooltip("Linear spring stiffness in Newtons per meter (N/m). Road sedan: 20000 - 28000 N/m, Sports car: 40000 - 65000 N/m.")]
+        [Tooltip("Maximum allowable damper length in meters when wheel is airborne / on droop extension.")]
+        [Range(0.25f, 1.20f)]
+        public float MaxLength;
+
+        [Header("Spring & Damping Dynamics")]
+        [Tooltip("Linear spring stiffness in Newtons per meter (N/m). Sedan: 24000 - 32000 N/m, Sports car: 35000 - 55000 N/m.")]
         [Min(1000f)]
         public float SpringStiffness;
 
-        [Tooltip("Shock absorber damping rate during compression / bump (N*s/m). Controls body dive and ride harshness.")]
+        [Tooltip("Shock absorber damping rate during compression / bump (N*s/m). Controls body dive and landing impact absorption.")]
         [Min(100f)]
         public float DamperCompressionRate;
 
-        [Tooltip("Shock absorber damping rate during rebound / extension (N*s/m). Typically 1.4 - 1.8x higher than compression to control body float.")]
+        [Tooltip("Shock absorber damping rate during rebound / extension (N*s/m). Typically 1.3 - 1.6x compression rate to control body oscillation.")]
         [Min(100f)]
         public float DamperReboundRate;
 
-        [Tooltip("Relative compression travel threshold where the progressive polyurethane bump stop engages (0.75 - 0.85).")]
-        [Range(0.5f, 0.95f)]
-        public float BumpStopThresholdRatio;
+        [Header("Progressive Bump Stop Buffer")]
+        [Tooltip("Buffer distance above MinLength where the progressive polyurethane bump stop engages (meters, e.g. 0.04m = 4cm).")]
+        [Range(0.01f, 0.15f)]
+        public float BumpStopBuffer;
 
-        [Tooltip("Progressive quadratic stiffness of the bump stop in N/m^2. Prevents suspension bottoming out hard.")]
+        [Tooltip("Progressive quadratic bump stop stiffness in N/m^2. Provides an unyielding deceleration cushion before reaching MinLength.")]
         [Min(1000f)]
         public float BumpStopStiffness;
 
         public static SuspensionAxleSettings DefaultFront => new()
         {
-            RestLength = 0.35f,
-            MaxTravel = 0.22f,
-            SpringStiffness = 24000f,
-            DamperCompressionRate = 2200f,
-            DamperReboundRate = 3400f,
-            BumpStopThresholdRatio = 0.80f,
-            BumpStopStiffness = 140000f
+            TargetLength = 0.44f,
+            MinLength = 0.35f,
+            MaxLength = 0.58f,
+            SpringStiffness = 28000f,
+            DamperCompressionRate = 3000f,
+            DamperReboundRate = 4200f,
+            BumpStopBuffer = 0.04f,
+            BumpStopStiffness = 350000f
         };
 
         public static SuspensionAxleSettings DefaultRear => new()
         {
-            RestLength = 0.35f,
-            MaxTravel = 0.22f,
-            SpringStiffness = 19000f,
-            DamperCompressionRate = 1800f,
-            DamperReboundRate = 2800f,
-            BumpStopThresholdRatio = 0.80f,
-            BumpStopStiffness = 140000f
+            TargetLength = 0.44f,
+            MinLength = 0.35f,
+            MaxLength = 0.58f,
+            SpringStiffness = 24000f,
+            DamperCompressionRate = 2600f,
+            DamperReboundRate = 3800f,
+            BumpStopBuffer = 0.04f,
+            BumpStopStiffness = 350000f
         };
     }
 
     /// <summary>
     /// Independent raycast suspension module with separate front and rear axle tuning,
-    /// asymmetric bump/rebound damping, and progressive bump stop bottoming-out protection.
+    /// hard MinLength arch protection, progressive bump stop buffer, and asymmetric bump/rebound damping.
     /// </summary>
     [Serializable]
     public class RaycastSuspensionModule : VehicleModule, ISuspensionModule
@@ -107,7 +117,7 @@ namespace VALYR.Modules.Suspension
 
                 float radius = chassis.WheelRadii[i];
                 Vector3 mountPoint = bodyPos + bodyRot * chassis.WheelOffsets[i];
-                float maxRayDistance = settings.RestLength + radius;
+                float maxRayDistance = settings.MaxLength + radius;
 
                 bool hasHit = surfaceProvider.CastRay(
                     mountPoint,
@@ -120,14 +130,20 @@ namespace VALYR.Modules.Suspension
 
                 if (hasHit)
                 {
+                    // Current distance from mount point (anchor) to wheel hub center
                     float currentLength = hit.Distance - radius;
-                    float compression = Mathf.Clamp(settings.RestLength - currentLength, 0f, settings.MaxTravel);
+
+                    // Strictly enforce damper travel bounds [MinLength, MaxLength]
+                    currentLength = Mathf.Clamp(currentLength, settings.MinLength, settings.MaxLength);
+
+                    // Compression relative to TargetLength (positive = compressed shorter than TargetLength)
+                    float compression = settings.TargetLength - currentLength;
 
                     // Suspension compression velocity (+ compression as body moves toward ground, - rebound)
                     Vector3 mountVelocity = body.GetPointVelocity(mountPoint);
                     float suspVelocity = Vector3.Dot(mountVelocity, suspDown);
 
-                    // 1. Hooke's linear spring force
+                    // 1. Hooke's linear spring force around TargetLength
                     float fSpring = settings.SpringStiffness * compression;
 
                     // 2. Shock absorber damper force with asymmetric bump vs rebound
@@ -136,37 +152,46 @@ namespace VALYR.Modules.Suspension
                         : settings.DamperReboundRate;
                     float fDamper = damperCoeff * suspVelocity;
 
-                    // 3. Progressive polyurethane bump stop
-                    float bumpThreshold = settings.MaxTravel * settings.BumpStopThresholdRatio;
+                    // 3. Progressive bump stop buffer approaching MinLength
+                    float bumpThresholdLength = settings.MinLength + settings.BumpStopBuffer;
                     float fBump = 0f;
-                    if (compression > bumpThreshold)
+                    if (currentLength < bumpThresholdLength)
                     {
-                        float excess = compression - bumpThreshold;
+                        float excess = bumpThresholdLength - currentLength;
                         fBump = settings.BumpStopStiffness * excess * excess;
+
+                        // Hard bottoming stop: if compressed to MinLength, arrest any remaining downward velocity
+                        if (currentLength <= settings.MinLength + 0.001f && suspVelocity > 0f)
+                        {
+                            float quarterMass = chassis.ChassisMass * 0.25f;
+                            fBump += (quarterMass * suspVelocity) / dt;
+                        }
                     }
 
-                    // Resultant suspension normal load (suspension cannot pull vehicle downward)
+                    // Resultant suspension normal load (suspension cannot pull vehicle downward into the ground)
                     float totalForce = Mathf.Max(0f, fSpring + fDamper + fBump);
 
-                    // Apply suspension upward force at the mount point on the chassis body
+                    // Apply suspension upward force at mount point on chassis
                     Vector3 forceVector = -suspDown * totalForce;
                     body.AddForceAtPosition(forceVector, mountPoint);
 
-                    // Update wheel contact state
+                    // Update wheel state
                     wheel.HasContact = true;
                     wheel.ContactPoint = hit.Point;
                     wheel.ContactNormal = hit.Normal;
+                    wheel.SuspensionLength = currentLength;
                     wheel.SuspensionCompression = compression;
                     wheel.SuspensionVelocity = suspVelocity;
                     wheel.NormalLoad = totalForce;
                 }
                 else
                 {
-                    // Wheel airborne
+                    // Wheel airborne: fully extended to MaxLength
                     wheel.HasContact = false;
                     wheel.ContactPoint = mountPoint + suspDown * maxRayDistance;
                     wheel.ContactNormal = -suspDown;
-                    wheel.SuspensionCompression = 0f;
+                    wheel.SuspensionLength = settings.MaxLength;
+                    wheel.SuspensionCompression = settings.TargetLength - settings.MaxLength;
                     wheel.SuspensionVelocity = 0f;
                     wheel.NormalLoad = 0f;
                 }

@@ -30,7 +30,10 @@ namespace VALYR.Core
         [Tooltip("Surface contact normal vector in world space.")]
         public Vector3 ContactNormal;
 
-        [Tooltip("Suspension compression travel in meters (0 = fully extended).")]
+        [Tooltip("Current damper length in meters from suspension anchor down to wheel hub axis.")]
+        public float SuspensionLength;
+
+        [Tooltip("Suspension compression travel in meters relative to TargetLength (positive = compressed).")]
         public float SuspensionCompression;
 
         [Tooltip("Suspension velocity along stroke in m/s (+ compression, - rebound).")]
