@@ -10380,7 +10380,7 @@ Rigidbody:
     m_Bits: 0
   m_ImplicitCom: 0
   m_ImplicitTensor: 1
-  m_UseGravity: 1
+  m_UseGravity: 0
   m_IsKinematic: 0
   m_Interpolate: 1
   m_Constraints: 0
@@ -10533,20 +10533,20 @@ MonoBehaviour:
         IsEnabled: 1
         FrontAxle:
           RestLength: 0.35
-          MaxTravel: 0.22
+          MaxTravel: 0.12
           SpringStiffness: 24000
-          DamperCompressionRate: 2200
+          DamperCompressionRate: 3200
           DamperReboundRate: 3400
-          BumpStopThresholdRatio: 0.8
-          BumpStopStiffness: 140000
+          BumpStopThresholdRatio: 0.65
+          BumpStopStiffness: 350000
         RearAxle:
           RestLength: 0.35
-          MaxTravel: 0.22
+          MaxTravel: 0.12
           SpringStiffness: 19000
-          DamperCompressionRate: 1800
+          DamperCompressionRate: 2800
           DamperReboundRate: 2800
-          BumpStopThresholdRatio: 0.8
-          BumpStopStiffness: 140000
+          BumpStopThresholdRatio: 0.65
+          BumpStopStiffness: 350000
         SurfaceLayers:
           serializedVersion: 2
           m_Bits: 4294967283
@@ -10709,7 +10709,9 @@ MonoBehaviour:
   FR_SuspensionAnchor: {fileID: 98568828}
   RL_SuspensionAnchor: {fileID: 541414195}
   RR_SuspensionAnchor: {fileID: 1048827390}
-  SuspensionRestLength: 0.445
+  AutoSyncRestLength: 1
+  SuspensionRestLength: 0.35
+  MaxWheelRise: 0.07
   SuspensionPositionSmoothRate: 25
 --- !u!114 &834320179
 MonoBehaviour:
