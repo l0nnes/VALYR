@@ -31,13 +31,13 @@
 * **🛡️ Zero Wheel-Arch Clipping & Preload Equilibrium**:
   Physical damper lengths (`MinLength`, `TargetLength`, `MaxLength`) measured from top-of-arch anchors. Spring naturally balances corner static weight at `TargetLength`, while hard bump stops guarantee tires never clip into fenders.
 * **🏎️ Analytical Brush Tire Friction Model**:
-  True combined longitudinal slip ratio ($s_x$) and lateral slip angle ($s_y$) mechanics with progressive friction saturation, weight-transfer sensitivity, and realistic sliding transitions.
+  True combined longitudinal slip ratio (`sx`) and lateral slip angle (`sy`) mechanics with progressive friction saturation, weight-transfer sensitivity, and realistic sliding transitions.
 * **🎛️ ScriptableObject Preset Ecosystem (`VehiclePreset`)**:
   Save, duplicate, and apply vehicle configurations (Sedan, Sport, Offroad, Drift) in one click with zero asset bloat.
 * **👁️ Decoupled Visual Presentation (`VehicleVisualView`)**:
   Keeps tire contact patches 100% flush with the ground (0 sinking, 0 hovering) and smooths visual rotation and compression independently of physics tick rates.
 * **📊 In-Game Telemetry HUD (`[F1]`)**:
-  Full diagnostic telemetry overlay displaying live damper travel, loads ($F_z$), slip ratios, wheel RPM, and 3D tire traction vectors.
+  Full diagnostic telemetry overlay displaying live damper travel, loads (`Fz`), slip ratios, wheel RPM, and 3D tire traction vectors.
 
 ---
 
@@ -71,10 +71,10 @@ flowchart TD
 | Subsystem | Contract | Default Implementation | Core Responsibility |
 |---|---|---|---|
 | **Wheel Contact** | `IWheelContactModule` | `WheelContactModule` | Scans terrain geometry, steps, ruts, road camber, and computes effective damper clearance distances. |
-| **Suspension** | `ISuspensionModule` | `RaycastSuspensionModule` | Preload static equilibrium, asymmetric bump/rebound dampers, progressive bump stops, and normal loads ($F_z$). |
+| **Suspension** | `ISuspensionModule` | `RaycastSuspensionModule` | Preload static equilibrium, asymmetric bump/rebound dampers, progressive bump stops, and normal loads (`Fz`). |
 | **Steering** | `ISteeringModule` | `DirectSteeringModule` | Speed-sensitive steering attenuation, Ackermann geometry, and rack response damping. |
 | **Powertrain** | `IEngineModule` & `ITransmissionModule` | `ArcadeEngineModule`, `SimpleTransmissionModule` | Torque curve evaluation, flywheel inertia, rev limiter, torque converter launch, and auto-shifting. |
-| **Tires** | `ITireModule` | `BrushTireModule` | Analytical brush friction mechanics, combined slip ($s_x, s_y$), and grip saturation. |
+| **Tires** | `ITireModule` | `BrushTireModule` | Analytical brush friction mechanics, combined slip (`sx, sy`), and grip saturation. |
 | **Assists** | `IChassisAssistModule`, `IWheelAssistModule` | `AntiRollBarModule`, `AbsModule`, `TcsModule` | Anti-roll weight transfer, anti-lock brake pulsation, and traction control slip regulation. |
 
 ---
@@ -115,36 +115,36 @@ Erebus (Rigidbody, VehicleController, VehicleInputReader, VehicleVisualView)
 ### 3. Inspector Configuration
 1. Select your vehicle GameObject.
 2. In the `VehicleController` inspector:
-   * **Preset**: Assign `Assets/Settings/Sedan_Baseline.asset` and click **"Apply Preset to Vehicle"**.
+   * **Preset**: Assign a preset (e.g. `Assets/Settings/Sedan_Baseline.asset`) and click **"Apply Preset to Vehicle"**.
    * **Wheel Mounts**: Drag your 4 suspension anchor transforms (`FL_Suspension`, etc.) or click **Auto Find**.
-   * Set `ChassisMass = 1180 kg` and `WheelRadius = 0.31 m`.
+   * Adjust **ChassisMass** and **WheelRadius** to match your 3D vehicle model specs.
 3. Press **Play** in Unity, drive using `W/A/S/D` or Arrow keys, and press **[F1]** to inspect real-time physics telemetry.
 
 ---
 
-## 📐 Suspension Kinematics & Math
+## 📐 Suspension Kinematics & Concepts
 
-```
-[ Suspension Anchor (FL_Suspension) ] --- Top of Wheel Arch
-               │
-               │  <-- Arch clearance gap: MinLength - WheelRadius >= 2 cm
-               ▼
-[ MinLength (0.33m) ]  --- Hard Bump Stop Limit (Zero Arch Clipping)
-               │
-               │  <-- Bump Travel (5 cm)
-               ▼
-[ TargetLength (0.38m) ] --- Equilibrium Ride Height (Nominal Rest Position)
-               │
-               │  <-- Rebound Travel (17 cm)
-               ▼
-[ MaxLength (0.55m) ]  --- Droop Limit in Air (Airborne)
+```text
+[ Suspension Anchor ] --- Mounted at Top of Wheel Arch / Chassis
+          │
+          │  <-- Arch Clearance: MinLength >= WheelRadius (Zero Clipping)
+          ▼
+    [ MinLength ]     --- Hard Bump Stop Limit (Arch Ceiling Protection)
+          │
+          │  <-- Bump Travel (Compression under load / impact)
+          ▼
+   [ TargetLength ]   --- Equilibrium Ride Height (Nominal Rest Position)
+          │
+          │  <-- Rebound Travel (Extension / Droop)
+          ▼
+    [ MaxLength ]     --- Maximum Extended Limit (Airborne / Droop)
 ```
 
 * **Hooke's Spring with Static Preload**:
-  $$F_{\text{spring}} = m_{\text{corner}} \cdot g + k \cdot (\text{TargetLength} - L)$$
+  `F_spring = F_static + SpringStiffness * (TargetLength - L)`
 * **Profile-Compensated Multi-Ray Contact**:
-  $$L_k = d_k - \sqrt{\max(0, R^2 - x_k^2)}$$
-  $$L_{\text{effective}} = \min_k (L_k)$$
+  `L_k = d_k - sqrt(max(0, Radius² - x_k²))`
+  `L_effective = min(L_k)`
 
 ---
 
@@ -185,5 +185,5 @@ npm run docs:build
 
 ## 📄 License
 
-VALYR is licensed under the [MIT License](LICENSE).
+VALYR is licensed under the [MIT License](LICENSE) © 2026 Zakhar Czembrowicz (l0nnes).
 Contributions, feedback, and pull requests are warmly welcomed!

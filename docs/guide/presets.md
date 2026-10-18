@@ -6,13 +6,13 @@ VALYR empowers game designers to tune, duplicate, and share vehicle setups witho
 
 ## 1. ScriptableObject Presets (`VehiclePreset`)
 
-A [`VehiclePreset`](file:///E:/Unity/Projects/VALYR/Assets/Scripts/VALYR/Runtime/VehiclePreset.cs) stores the complete configuration of a vehicle:
+A `VehiclePreset` stores the complete configuration of a vehicle:
 * Mass, Center of Mass offset, Wheel Radius
 * Ground layer masks
 * Assigned subsystems: `WheelContact`, `Suspension`, `Steering`, `Engine`, `Transmission`, `Tires`, and `Assists`.
 
 ### Creating a Preset
-1. Right-click in the Project window $\to$ **Create $\to$ VALYR $\to$ Vehicle Preset**.
+1. Right-click in the Project window -> **Create -> VALYR -> Vehicle Preset**.
 2. Name it (e.g. `Sport_Coupe`, `Offroad_4x4`, `Sedan_Baseline`).
 3. Tune properties in the Inspector.
 

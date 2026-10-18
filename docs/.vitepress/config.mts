@@ -1,10 +1,12 @@
 import { defineConfig } from 'vitepress'
+import { withMermaid } from 'vitepress-plugin-mermaid'
 
-export default defineConfig({
-  title: 'VALYR Physics',
-  description: 'High-Performance Modular Vehicle Simulation Framework for Unity',
-  base: '/VALYR/',
-  cleanUrls: true,
+export default withMermaid(
+  defineConfig({
+    title: 'VALYR Physics',
+    description: 'High-Performance Modular Vehicle Simulation Framework for Unity',
+    base: '/VALYR/',
+    cleanUrls: true,
   themeConfig: {
     nav: [
       { text: 'Home', link: '/' },
@@ -45,10 +47,11 @@ export default defineConfig({
     ],
     footer: {
       message: 'Released under the MIT License.',
-      copyright: 'Copyright © 2026 VALYR Framework'
+      copyright: 'Copyright © 2026 Zakhar Czembrowicz (l0nnes)'
     },
     search: {
       provider: 'local'
     }
   }
-})
+}))
+

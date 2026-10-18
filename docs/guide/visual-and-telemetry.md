@@ -4,11 +4,13 @@
 
 Physical simulation in Unity runs in `FixedUpdate` (typically 50–60 Hz), while rendering runs in `Update` (variable frame rate: 60–240+ FPS). 
 
-[`VehicleVisualView`](file:///E:/Unity/Projects/VALYR/Assets/Scripts/VALYR/Runtime/Visual/VehicleVisualView.cs) decouples rendering from physics:
+`VehicleVisualView` decouples rendering from physics:
 
 ### Ground Contact Patch Alignment
 * When touching the ground, the wheel hub is placed directly above the contact patch:
-  $$\mathbf{P}_{\text{hub}} = \mathbf{P}_{\text{contact}} + \mathbf{N}_{\text{contact}} \cdot R_{\text{wheel}}$$
+  ```text
+  P_hub = P_contact + N_contact * WheelRadius
+  ```
 * **Zero Ground Penetration**: The bottom of the tire sits 100% flush on the road surface with zero sinking or hovering.
 * **Zero Arch Clipping**: The hub is clamped so it physically cannot rise closer to the anchor than `MinLength`.
 
@@ -26,8 +28,8 @@ Press **[F1]** during Play Mode to toggle the real-time HUD:
 * **4-Wheel Card Grid**:
   * Grounded / Airborne status indicator
   * Damper current length vs target ride height (cm)
-  * Damper velocity (m/s) and Normal Load $F_z$ (N)
-  * Wheel RPM, Wheel Speed, and Angular velocity $\omega$
-  * Longitudinal Slip Ratio ($s_x$) and Lateral Slip Angle ($s_y$)
-  * Longitudinal Traction ($F_x$) and Lateral Cornering Force ($F_y$) in Newtons
+  * Damper velocity (m/s) and Normal Load `Fz` (N)
+  * Wheel RPM, Wheel Speed, and Angular velocity `omega`
+  * Longitudinal Slip Ratio (`sx`) and Lateral Slip Angle (`sy`)
+  * Longitudinal Traction (`Fx`) and Lateral Cornering Force (`Fy`) in Newtons
   * Skid intensity percentage for audio & smoke VFX

@@ -20,6 +20,6 @@ VALYR decouples engine generation from gear reduction and differential distribut
 
 ## 2. Steering Kinematics (`DirectSteeringModule`)
 
-* **Speed-Sensitive Attenuation**: Smoothly reduces max steering angle from low-speed maneuvering ($36^\circ$) to high-speed stability ($12^\circ$ at high speeds).
+* **Speed-Sensitive Attenuation**: Smoothly reduces max steering angle from low-speed maneuvering (e.g. 36°) to high-speed stability (e.g. 12° at high speeds).
 * **Ackermann Steering Geometry**: Angles the inner front wheel more sharply than the outer front wheel to prevent scrubbing around corners.
 * **Rate-Limited Response**: Filters sudden input spikes to model steering rack damping.

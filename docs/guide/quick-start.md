@@ -54,19 +54,19 @@ Erebus (GameObject with Rigidbody, VehicleController, VehicleInputReader, Vehicl
    * **Vehicle Preset**: Assign `Assets/Settings/Sedan_Baseline.asset` and click **"Apply Preset to Vehicle"**.
    * **Wheel Mounts**: Drag your 4 suspension anchor transforms (`FL_Suspension`, `FR_Suspension`, `RL_Suspension`, `RR_Suspension`) into the corresponding slots. Or click **Auto Find**.
    * **Chassis & Mass**:
-     * `WheelRadius`: `0.31m`
-     * `ChassisMass`: `1180 kg`
-     * `CenterOfMass`: `(0, -0.22, 0.12)`
+     * `WheelRadius`: Radius of your vehicle's tires (measured from wheel hub to outer tread).
+     * `ChassisMass`: Mass of the vehicle body (matches your vehicle specification).
+     * `CenterOfMass`: Center of mass offset relative to vehicle root (typically slightly below the axle line).
      * `GroundLayers`: Select your ground/road layers (excludes vehicle colliders).
 
 ---
 
 ## 4. Visual View & Developer Telemetry
 
-Add or inspect [`VehicleVisualView`](file:///E:/Unity/Projects/VALYR/Assets/Scripts/VALYR/Runtime/Visual/VehicleVisualView.cs):
+Add or inspect `VehicleVisualView`:
 * Assign the 4 visual wheel transforms and 4 suspension anchors.
 * The visual layer automatically keeps the tire contact patch flush with the road, applies steering rotation around Y, roll rotation around X, and guarantees the wheel **never penetrates the fender arch**!
 
 Press **Play** in Unity, and press **[F1]** to toggle the real-time telemetry HUD displaying:
 * Speed, Engine RPM, Gear, Clutch engagement
-* Per-wheel damper lengths, loads ($F_z$), slip ratios, slip angles, and skid intensity.
+* Per-wheel damper lengths, loads (`Fz`), slip ratios, slip angles, and skid intensity.
