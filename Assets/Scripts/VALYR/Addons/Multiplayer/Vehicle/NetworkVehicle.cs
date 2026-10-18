@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
@@ -16,7 +17,8 @@ namespace VALYR.Multiplayer
     /// <summary>
     /// Base multiplayer adapter for VALYR vehicles over PurrNet.
     /// Strictly responsible for core functionality:
-    /// - Dynamic PhysX Rigidbody configuration and collision response without belly sagging
+    /// - Kinematic remote proxy + dynamic local vehicle physics ensuring zero-penetration collisions
+    /// - Network collision impulse transfer (Arctic Drive pattern) so rammed vehicles react with full physical forces
     /// - Client-owner authority management and input isolation
     /// - Cinemachine camera rig binding (all 5 camera slots with C key switching)
     /// - Silky-smooth wheel visuals (independent per-wheel angular velocity roll integration and smooth steer angle lerp)
@@ -53,6 +55,10 @@ namespace VALYR.Multiplayer
         private float _proxyWheelRoll1;
         private float _proxyWheelRoll2;
         private float _proxyWheelRoll3;
+
+        // Collision cooldown to prevent multiple impulse spam within a few frames
+        private float _lastCollisionTime;
+        private const float CollisionCooldown = 0.15f;
 
         private static readonly FieldInfo CameraSlotsField =
             typeof(VehicleCameraController).GetField("_cameraSlots", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -197,21 +203,23 @@ namespace VALYR.Multiplayer
             if (_telemetryHUD != null)
                 _telemetryHUD.enabled = localControl;
 
-            // 4. Rigidbody physics configuration
+            // 4. Rigidbody physics configuration (Kinematic Proxy Pattern)
             if (_rigidbody != null)
             {
-                // Dynamic PhysX ensures realistic two-car collisions and momentum transfer
-                _rigidbody.isKinematic = false;
                 _rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
 
                 if (localControl)
                 {
-                    // Local driver: full gravity supported by local suspension raycasts
+                    // Local driver: full dynamic PhysX simulation with gravity and raycast suspension
+                    _rigidbody.isKinematic = false;
                     _rigidbody.useGravity = true;
                 }
                 else
                 {
-                    // Remote proxy: zero gravity to prevent sagging while keeping full dynamic collision responses
+                    // Remote proxy: KINEMATIC!
+                    // Completely prevents collider interpenetration, eliminates PhysX/Network spring fighting,
+                    // and provides an impenetrable, solid physical obstacle for local dynamic vehicles.
+                    _rigidbody.isKinematic = true;
                     _rigidbody.useGravity = false;
                 }
             }
@@ -259,6 +267,15 @@ namespace VALYR.Multiplayer
                 };
 
                 _networkState.value = net;
+            }
+            else if (!IsLocallyControlled && _rigidbody != null)
+            {
+                // Enforce kinematic state on proxies if NetworkRigidbody received sync settings
+                if (!_rigidbody.isKinematic)
+                {
+                    _rigidbody.isKinematic = true;
+                    _rigidbody.useGravity = false;
+                }
             }
         }
 
@@ -325,6 +342,99 @@ namespace VALYR.Multiplayer
                 }
             }
         }
+
+        #region Collision & Impulse Transfer (Arctic Drive Pattern)
+
+        private void OnCollisionEnter(Collision collision)
+        {
+            // Only the locally controlled dynamic vehicle detects and transmits impact impulses
+            if (!IsLocallyControlled || _rigidbody == null || _rigidbody.isKinematic)
+                return;
+
+            if (Time.time - _lastCollisionTime < CollisionCooldown)
+                return;
+
+            var otherNet = collision.collider.GetComponentInParent<NetworkVehicle>();
+            if (otherNet == null || otherNet == this || otherNet.IsLocallyControlled)
+                return;
+
+            float impactSpeed = collision.relativeVelocity.magnitude;
+            if (impactSpeed < 1.0f)
+                return;
+
+            _lastCollisionTime = Time.time;
+
+            ContactPoint contact = collision.GetContact(0);
+            // Normal points from other into this; negative normal points into other
+            Vector3 impulse = -contact.normal * (impactSpeed * _rigidbody.mass * 0.75f);
+            // Clamp excessive vertical launch forces
+            impulse.y = Mathf.Clamp(impulse.y, -impactSpeed * 300f, impactSpeed * 600f);
+
+            // 1. Send impact impulse over network to the owner of the other vehicle
+            otherNet.SendCollisionImpulse(impulse, contact.point);
+
+            // 2. Debounce collision between the two vehicles briefly so they bounce apart cleanly
+            StartCoroutine(TemporaryIgnoreCollision(otherNet, 0.20f));
+        }
+
+        /// <summary>
+        /// Sends an impact impulse to the owner of this vehicle via network RPC.
+        /// </summary>
+        public void SendCollisionImpulse(Vector3 impulse, Vector3 point)
+        {
+            RequestImpactImpulseServerRpc(impulse, point);
+        }
+
+        [ServerRpc(requireOwnership: false)]
+        private void RequestImpactImpulseServerRpc(Vector3 impulse, Vector3 point)
+        {
+            ApplyImpactImpulseObserversRpc(impulse, point);
+        }
+
+        [ObserversRpc]
+        private void ApplyImpactImpulseObserversRpc(Vector3 impulse, Vector3 point)
+        {
+            // Only the dynamic owner executes the physical impact force
+            if (IsLocallyControlled && _rigidbody != null && !_rigidbody.isKinematic)
+            {
+                _rigidbody.AddForceAtPosition(impulse, point, ForceMode.Impulse);
+            }
+        }
+
+        private IEnumerator TemporaryIgnoreCollision(NetworkVehicle other, float duration)
+        {
+            if (other == null) yield break;
+
+            var myColliders = GetComponentsInChildren<Collider>();
+            var otherColliders = other.GetComponentsInChildren<Collider>();
+
+            for (int i = 0; i < myColliders.Length; i++)
+            {
+                if (myColliders[i] == null) continue;
+                for (int j = 0; j < otherColliders.Length; j++)
+                {
+                    if (otherColliders[j] == null) continue;
+                    Physics.IgnoreCollision(myColliders[i], otherColliders[j], true);
+                }
+            }
+
+            yield return new WaitForSeconds(duration);
+
+            if (other != null)
+            {
+                for (int i = 0; i < myColliders.Length; i++)
+                {
+                    if (myColliders[i] == null) continue;
+                    for (int j = 0; j < otherColliders.Length; j++)
+                    {
+                        if (otherColliders[j] == null) continue;
+                        Physics.IgnoreCollision(myColliders[i], otherColliders[j], false);
+                    }
+                }
+            }
+        }
+
+        #endregion
 
         /// <summary>
         /// Binds scene Cinemachine cameras to follow this vehicle for the local player,

@@ -4,9 +4,9 @@ using PurrNet;
 namespace VALYR.Multiplayer
 {
     /// <summary>
-    /// Custom NetworkRigidbodySettings implementing the Arctic Drive de-penetration pattern.
+    /// Custom NetworkRigidbodySettings implementing the Arctic Drive de-penetration and kinematic proxy pattern.
     /// Prevents vehicles from clipping into terrain, rocks, or falling through the world during hard teleports,
-    /// while preserving natural dynamic PhysX collision impulses and momentum exchange.
+    /// while smoothly driving kinematic proxy vehicles with MovePosition/MoveRotation for stable multiplayer collisions.
     /// </summary>
     [CreateAssetMenu(fileName = "VehicleRigidbodySettings", menuName = "VALYR/Multiplayer/Vehicle Rigidbody Settings", order = 100)]
     public class VehicleRigidbodySettings : NetworkRigidbodySettings
@@ -28,7 +28,7 @@ namespace VALYR.Multiplayer
     }
 
     /// <summary>
-    /// Runtime instance that executes dynamic spring-damper corrections and Arctic Drive de-penetration logic.
+    /// Runtime instance that executes dynamic spring-damper corrections, kinematic proxy movement, and de-penetration logic.
     /// </summary>
     public class VehicleRigidbodySettingsInstance : NetworkRigidbodySettingsInstance
     {
@@ -105,13 +105,34 @@ namespace VALYR.Multiplayer
 
         public override void ApplyPositionCorrection(in RigidbodyCorrectionContext ctx)
         {
-            // Base implementation applies PurrNet's calibrated spring-damper force.
-            // This preserves full PhysX collision impulses between dynamic vehicles!
+            var rb = ctx.rigidbody;
+            if (rb == null) return;
+
+            // When proxy vehicle is Kinematic, drive it smoothly with MovePosition
+            // Eliminates spring-force fighting against PhysX colliders and prevents jitter/penetration
+            if (rb.isKinematic)
+            {
+                float lerpFactor = 1f - Mathf.Exp(-25f * Time.fixedDeltaTime);
+                rb.MovePosition(Vector3.Lerp(rb.position, ctx.targetPosition, lerpFactor));
+                return;
+            }
+
             base.ApplyPositionCorrection(ctx);
         }
 
         public override void ApplyRotationCorrection(in RigidbodyCorrectionContext ctx)
         {
+            var rb = ctx.rigidbody;
+            if (rb == null) return;
+
+            // When proxy vehicle is Kinematic, drive it smoothly with MoveRotation
+            if (rb.isKinematic)
+            {
+                float lerpFactor = 1f - Mathf.Exp(-25f * Time.fixedDeltaTime);
+                rb.MoveRotation(Quaternion.Slerp(rb.rotation, NormalizeQuaternion(ctx.targetRotation), lerpFactor));
+                return;
+            }
+
             base.ApplyRotationCorrection(ctx);
         }
     }
