@@ -1,5 +1,13 @@
 # [1.2.0](https://github.com/l0nnes/VALYR/compare/v1.1.0...v1.2.0) (2026-10-18)
 
+
+### Features
+
+* **camera, input, scene:** add cockpit head look, driving inputs, terrain environment, and update scene profile ([f359d3f](https://github.com/l0nnes/VALYR/commit/f359d3ff3ef2def07de4e3c6ba8159bd5d63e755))
+* **camera, visual:** smooth camera tracking, wheel visuals interpolation, and door collider linking ([d03fb14](https://github.com/l0nnes/VALYR/commit/d03fb14f7a3780a76a6d84086f36b6714e0f02f0))
+
+# [1.2.0](https://github.com/l0nnes/VALYR/compare/v1.1.0...v1.2.0) (2026-10-18)
+
 ### Core
 
 #### Features
