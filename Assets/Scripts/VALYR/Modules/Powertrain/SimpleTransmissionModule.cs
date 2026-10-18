@@ -15,7 +15,7 @@ namespace VALYR.Modules.Powertrain
     /// <summary>
     /// Transmission and braking module supporting AWD, RWD, and FWD layouts,
     /// automatic shifting with cooldown & speed-gating, torque converter lockup,
-    /// and brake balance (bias) distribution.
+    /// brake balance distribution, Auto Hold at standstill, and responsive Reverse gear logic.
     /// </summary>
     [Serializable]
     public class SimpleTransmissionModule : VehicleModule, ITransmissionModule
@@ -55,7 +55,7 @@ namespace VALYR.Modules.Powertrain
         [Range(1000f, 4000f)]
         public float ShiftDownRpm = 1900f;
 
-        [Tooltip("Duration of the power interrupt during gear shifting in seconds (0.15 - 0.35s).")]
+        [Tooltip("Duration of the power interrupt during forward gear shifting in seconds (0.15 - 0.35s).")]
         [Range(0.05f, 0.6f)]
         public float ShiftDuration = 0.25f;
 
@@ -72,10 +72,41 @@ namespace VALYR.Modules.Powertrain
         [Min(100f)]
         public float MaxHandbrakeTorque = 2400f;
 
+        [Header("Auto Hold System")]
+        [Tooltip("Enable Auto Hold: holds vehicle brakes when coming to a complete stop until throttle is pressed.")]
+        public bool EnableAutoHold = true;
+
+        [Tooltip("Throttle input threshold above which Auto Hold disengages and the vehicle accelerates forward.")]
+        [Range(0.01f, 0.3f)]
+        public float AutoHoldThrottleThreshold = 0.08f;
+
+        [Tooltip("Brake input threshold to engage reverse or disengage Auto Hold while stopped.")]
+        [Range(0.01f, 0.3f)]
+        public float AutoHoldBrakeThreshold = 0.08f;
+
+        [Tooltip("Holding brake torque applied to all wheels when Auto Hold is active (Nm).")]
+        [Min(200f)]
+        public float AutoHoldBrakeTorque = 1600f;
+
+        [Header("Reverse Gear Tuning")]
+        [Tooltip("Maximum allowed speed in reverse (km/h) to prevent uncontrollable backward runaway.")]
+        [Range(20f, 80f)]
+        public float MaxReverseSpeedKmh = 42f;
+
+        [Tooltip("Delay in seconds when holding brake at standstill before shifting into reverse (typical: 0.15 - 0.30s).")]
+        [Range(0.05f, 0.6f)]
+        public float ReverseHoldDelay = 0.20f;
+
+        [Tooltip("Brief shift duration when entering or leaving reverse (seconds).")]
+        [Range(0.05f, 0.3f)]
+        public float ReverseShiftDuration = 0.12f;
+
         private const float RadPerSecToRpm = 60f / (2f * Mathf.PI);
         private float _reverseHoldTimer;
         private float _shiftCooldownTimer;
-        private bool _requireBrakeReleaseForReverse;
+        private bool _isAutoHoldActive;
+
+        public bool IsAutoHoldActive => _isAutoHoldActive;
 
         public SimpleTransmissionModule()
         {
@@ -131,41 +162,45 @@ namespace VALYR.Modules.Powertrain
                 state.ClutchEngagement = 1f;
             }
 
-            // 2. Automatic gear shifting logic with anti-hunting cooldown
+            float vehicleGroundSpeed = GetVehicleGroundSpeed(in state, in chassis);
+
+            // 2. Automatic gear shifting logic & Auto Hold state machine
             if (AutomaticShift && state.ShiftTimer <= 0f && _shiftCooldownTimer <= 0f)
             {
-                UpdateAutoShift(in input, ref state, in chassis, dt);
+                UpdateAutoShift(in input, ref state, in chassis, vehicleGroundSpeed, dt);
             }
 
             // 3. Compute effective total gear ratio
             float currentRatio = GetGearRatio(state.CurrentGear);
             float totalRatio = currentRatio * FinalDriveRatio;
 
-            // 4. Determine drive demand and brake demand depending on mode (Forward vs Reverse)
-            float driveDemand;
-            float brakeDemand;
+            // 4. Determine drive demand and brake demand depending on mode (Forward, Reverse, AutoHold)
+            float driveDemand = 0f;
+            float brakeDemand = 0f;
 
-            if (state.CurrentGear == -1)
+            if (_isAutoHoldActive)
             {
-                // Safety guard: require releasing the brake pedal after shifting to reverse before backward acceleration starts
-                if (_requireBrakeReleaseForReverse)
+                // Under Auto Hold: zero drive demand, holding brake applied below
+                driveDemand = 0f;
+                brakeDemand = 0f;
+            }
+            else if (state.CurrentGear == -1)
+            {
+                // In Reverse: Brake pedal is throttle, Throttle pedal is brake
+                driveDemand = Mathf.Clamp01(input.Brake);
+                brakeDemand = Mathf.Clamp01(input.Throttle);
+
+                // Speed governor in reverse
+                float backwardSpeedKmh = vehicleGroundSpeed * 3.6f;
+                if (backwardSpeedKmh > MaxReverseSpeedKmh)
                 {
-                    if (input.Brake < 0.1f)
-                    {
-                        _requireBrakeReleaseForReverse = false;
-                    }
-                    driveDemand = 0f;
-                    brakeDemand = 1.0f;
-                }
-                else
-                {
-                    driveDemand = Mathf.Clamp01(input.Brake);
-                    brakeDemand = Mathf.Clamp01(input.Throttle);
+                    float overspeed = backwardSpeedKmh - MaxReverseSpeedKmh;
+                    driveDemand *= Mathf.Clamp01(1f - overspeed / 5f);
                 }
             }
             else
             {
-                _requireBrakeReleaseForReverse = false;
+                // Forward Gears: Throttle is drive, Brake is brake
                 driveDemand = Mathf.Clamp01(input.Throttle);
                 brakeDemand = Mathf.Clamp01(input.Brake);
             }
@@ -212,6 +247,14 @@ namespace VALYR.Modules.Powertrain
             float frontBrakeTorque = (totalBrakeTorque * FrontBrakeBias) * 0.5f;
             float rearBrakeTorque = (totalBrakeTorque * (1f - FrontBrakeBias)) * 0.5f;
 
+            // Apply Auto Hold holding torque when active
+            if (_isAutoHoldActive)
+            {
+                float holdTorque = AutoHoldBrakeTorque * 0.5f;
+                frontBrakeTorque += holdTorque;
+                rearBrakeTorque += holdTorque;
+            }
+
             actuation.GetRef(0).BrakeTorque += frontBrakeTorque;
             actuation.GetRef(1).BrakeTorque += frontBrakeTorque;
             actuation.GetRef(2).BrakeTorque += rearBrakeTorque;
@@ -233,7 +276,7 @@ namespace VALYR.Modules.Powertrain
                 DrivetrainRpm = drivetrainRpm,
                 LoadTorque = 0f,
                 ClutchEngagement = state.ClutchEngagement,
-                IsDisengaged = (state.CurrentGear == 0 || state.ShiftTimer > 0f)
+                IsDisengaged = (state.CurrentGear == 0 || state.ShiftTimer > 0f || _isAutoHoldActive)
             };
         }
 
@@ -248,24 +291,70 @@ namespace VALYR.Modules.Powertrain
             return ForwardGearRatios[index];
         }
 
-        private void UpdateAutoShift(in VehicleInput input, ref VehicleState state, in VehicleChassisConfig chassis, float dt)
+        private void UpdateAutoShift(in VehicleInput input, ref VehicleState state, in VehicleChassisConfig chassis, float vehicleGroundSpeed, float dt)
         {
             float rpm = state.EngineRpm;
             int gear = state.CurrentGear;
 
-            float vehicleGroundSpeed = GetVehicleGroundSpeed(in state, in chassis);
+            // A. Auto Hold State Machine
+            if (EnableAutoHold)
+            {
+                if (vehicleGroundSpeed < 0.35f)
+                {
+                    // Engage Auto Hold when coming to a complete stop and releasing pedals
+                    if (!_isAutoHoldActive && input.Brake < AutoHoldBrakeThreshold && input.Throttle < AutoHoldThrottleThreshold)
+                    {
+                        _isAutoHoldActive = true;
+                    }
 
-            // Shifting into Reverse: Requires deliberate brake hold at full standstill (< 0.15 m/s)
-            if (gear >= 1 && vehicleGroundSpeed < 0.15f && input.Brake > 0.6f && input.Throttle < 0.05f)
+                    if (_isAutoHoldActive)
+                    {
+                        // 1. Pressing throttle disengages Auto Hold and moves forward
+                        if (input.Throttle > AutoHoldThrottleThreshold)
+                        {
+                            _isAutoHoldActive = false;
+                            if (state.CurrentGear == -1)
+                            {
+                                state.CurrentGear = 1;
+                                state.ShiftTimer = ReverseShiftDuration;
+                                _shiftCooldownTimer = 0.25f;
+                            }
+                            return;
+                        }
+
+                        // 2. Pressing brake while stopped disengages Auto Hold and immediately shifts into Reverse
+                        if (input.Brake > AutoHoldBrakeThreshold)
+                        {
+                            _isAutoHoldActive = false;
+                            if (state.CurrentGear >= 1)
+                            {
+                                state.CurrentGear = -1;
+                                state.ShiftTimer = ReverseShiftDuration;
+                                _shiftCooldownTimer = 0.25f;
+                            }
+                            return;
+                        }
+
+                        return;
+                    }
+                }
+                else
+                {
+                    _isAutoHoldActive = false;
+                }
+            }
+
+            // B. Shifting into Reverse by holding brake at standstill
+            if (gear >= 1 && vehicleGroundSpeed < 0.35f && input.Brake > 0.25f && input.Throttle < AutoHoldThrottleThreshold)
             {
                 _reverseHoldTimer += dt;
-                if (_reverseHoldTimer > 0.85f)
+                if (_reverseHoldTimer > ReverseHoldDelay)
                 {
                     state.CurrentGear = -1;
-                    state.ShiftTimer = ShiftDuration;
-                    _shiftCooldownTimer = 0.5f;
+                    state.ShiftTimer = ReverseShiftDuration;
+                    _shiftCooldownTimer = 0.25f;
                     _reverseHoldTimer = 0f;
-                    _requireBrakeReleaseForReverse = true;
+                    _isAutoHoldActive = false;
                     return;
                 }
             }
@@ -274,16 +363,17 @@ namespace VALYR.Modules.Powertrain
                 _reverseHoldTimer = 0f;
             }
 
-            // Shifting from Reverse back to 1st gear on throttle press while vehicle is stopped
-            if (gear == -1 && input.Throttle > 0.2f && vehicleGroundSpeed < 0.4f)
+            // C. Shifting from Reverse back to 1st gear on throttle press while vehicle is stopped
+            if (gear == -1 && input.Throttle > AutoHoldThrottleThreshold && vehicleGroundSpeed < 0.45f)
             {
                 state.CurrentGear = 1;
-                state.ShiftTimer = ShiftDuration;
-                _shiftCooldownTimer = 0.5f;
+                state.ShiftTimer = ReverseShiftDuration;
+                _shiftCooldownTimer = 0.25f;
+                _isAutoHoldActive = false;
                 return;
             }
 
-            // Upshift (1 -> 2 -> ... -> N):
+            // D. Upshift (1 -> 2 -> ... -> N):
             // Gated by realistic physical speed limits for each gear to prevent skipping
             if (gear >= 1 && ForwardGearRatios != null && gear < ForwardGearRatios.Length)
             {
@@ -292,12 +382,12 @@ namespace VALYR.Modules.Powertrain
                 {
                     state.CurrentGear = gear + 1;
                     state.ShiftTimer = ShiftDuration;
-                    _shiftCooldownTimer = 1.0f; // Prevent multi-gear jump
+                    _shiftCooldownTimer = 0.8f;
                     return;
                 }
             }
 
-            // Downshift (N -> ... -> 2 -> 1)
+            // E. Downshift (N -> ... -> 2 -> 1)
             if (gear > 1)
             {
                 float minSpeedForCurrentGear = GetGearMaxSpeed(gear - 1, in chassis) * 0.65f;
@@ -305,7 +395,7 @@ namespace VALYR.Modules.Powertrain
                 {
                     state.CurrentGear = gear - 1;
                     state.ShiftTimer = ShiftDuration;
-                    _shiftCooldownTimer = 0.8f;
+                    _shiftCooldownTimer = 0.6f;
                 }
             }
         }

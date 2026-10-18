@@ -71,8 +71,10 @@ namespace VALYR.Runtime.UI
                 GUILayout.Space(4);
 
                 // 1. General vehicle parameters
+                bool isAutoHold = (_controller.Transmission is VALYR.Modules.Powertrain.SimpleTransmissionModule transMod) && transMod.IsAutoHoldActive;
+                string autoHoldText = isAutoHold ? " <color=#00FF66>[AUTO HOLD]</color>" : "";
                 string gearText = state.CurrentGear == -1 ? "R" : (state.CurrentGear == 0 ? "N" : state.CurrentGear.ToString());
-                GUILayout.Label($"<b>Speed:</b> {speedKmh:F1} km/h ({speedMs:F1} m/s) | <b>Engine:</b> {state.EngineRpm:F0} RPM | <b>Gear:</b> {gearText} | <b>Clutch:</b> {state.ClutchEngagement * 100f:F0}%", _labelStyle);
+                GUILayout.Label($"<b>Speed:</b> {speedKmh:F1} km/h ({speedMs:F1} m/s) | <b>Engine:</b> {state.EngineRpm:F0} RPM | <b>Gear:</b> {gearText}{autoHoldText} | <b>Clutch:</b> {state.ClutchEngagement * 100f:F0}%", _labelStyle);
 
                 // Driver Inputs
                 GUILayout.Label($"<b>Input:</b> Throttle: [{GetBar(input.Throttle)}] {input.Throttle * 100f:F0}% | Brake: [{GetBar(input.Brake)}] {input.Brake * 100f:F0}% | Steer: {input.Steer * 100f:+0;-0;0}% | E-Brake: {(input.Handbrake > 0.5f ? "ON" : "OFF")}", _labelStyle);
