@@ -47,6 +47,17 @@ namespace VALYR.Modules.Tires
             Vector3 bodyUp = bodyRot * Vector3.up;
             Vector3 bodyForward = bodyRot * Vector3.forward;
 
+            // Total normal load supported by all grounded wheels for dynamic mass distribution
+            float totalNormalLoad = 0f;
+            for (int j = 0; j < 4; j++)
+            {
+                if (state.Wheels[j].HasContact && state.Wheels[j].NormalLoad > 0.001f)
+                {
+                    totalNormalLoad += state.Wheels[j].NormalLoad;
+                }
+            }
+            Vector3 gravity = Physics.gravity;
+
             for (int i = 0; i < 4; i++)
             {
                 bool isFront = (i == 0 || i == 1);
@@ -90,67 +101,139 @@ namespace VALYR.Modules.Tires
                 Vector3 contactVelocity = body.GetPointVelocity(wheel.ContactPoint);
                 float vx = Vector3.Dot(contactVelocity, wheelForward);
                 float vy = Vector3.Dot(contactVelocity, wheelRight);
-                float contactLinearSpeed = contactVelocity.magnitude;
-
-                // 1. Lateral slip angle and lateral force calculation
                 float contactSpeed = Mathf.Sqrt(vx * vx + vy * vy);
-                float vDenom = Mathf.Max(contactSpeed, 0.5f);
-                float slipAngle = -vy / vDenom;
 
                 float effectiveMuX = Mathf.Max(tireParams.FrictionCoefficientX, 0.1f);
                 float effectiveMuY = Mathf.Max(tireParams.FrictionCoefficientY, 0.1f);
                 float maxFx = effectiveMuX * wheel.NormalLoad;
                 float maxFy = effectiveMuY * wheel.NormalLoad;
 
-                float sigmaY = (tireParams.LateralStiffness * slipAngle) / maxFy;
-                float rawFy = maxFy * Mathf.Clamp(sigmaY, -1f, 1f);
+                // Corner mass supported by this specific wheel based on normal load distribution
+                float cornerMass = chassis.ChassisMass * (wheel.NormalLoad / Mathf.Max(10f, totalNormalLoad));
 
-                // Numerical chatter prevention at low speeds (< 1.0 m/s):
-                // Lateral force must not exceed the force required to arrest lateral motion in one timestep.
-                if (contactSpeed < 1.0f)
+                // Check static stiction hold (e.g. Auto Hold, handbrake, service brake at low speed / standstill)
+                float totalBrakeTorque = brakeTorque + actuation[i].HandbrakeTorque;
+                bool isBraked = totalBrakeTorque > 1.0f;
+                bool isDriving = driveTorque > 5.0f;
+                bool isLowSpeed = contactSpeed < 1.0f;
+
+                float fx;
+                float fy;
+                float nextOmega;
+                float nextAngle;
+                float slipRatio;
+                float slipAngle;
+                float skidIntensity;
+
+                if (isBraked && isLowSpeed && !isDriving)
                 {
-                    float quarterMass = chassis.ChassisMass * 0.25f;
-                    float maxLateralStoppingForce = (quarterMass * Mathf.Abs(vy)) / dt;
-                    if (Mathf.Abs(rawFy) > maxLateralStoppingForce)
+                    // Static Stiction Solver:
+                    // Calculate exact forces required to cancel surface-tangent gravity acceleration
+                    // and arrest any residual contact patch velocity to zero within one timestep.
+                    float fHoldX = -cornerMass * (vx / dt + Vector3.Dot(gravity, wheelForward));
+                    float fHoldY = -cornerMass * (vy / dt + Vector3.Dot(gravity, wheelRight));
+
+                    // Maximum holding capacity of the tire + brake system:
+                    // Longitudinal hold is limited by tire friction AND brake caliper holding force (T_brake / R)
+                    float maxBrakeForce = totalBrakeTorque / radius;
+                    float maxHoldX = Mathf.Min(maxFx, maxBrakeForce);
+                    float maxHoldY = maxFy;
+
+                    float normHoldX = fHoldX / Mathf.Max(maxHoldX, 0.001f);
+                    float normHoldY = fHoldY / Mathf.Max(maxHoldY, 0.001f);
+                    float stictionMagnitude = Mathf.Sqrt(normHoldX * normHoldX + normHoldY * normHoldY);
+
+                    if (stictionMagnitude <= 1.0f)
                     {
-                        rawFy = Mathf.Sign(rawFy) * maxLateralStoppingForce;
+                        // Complete static stiction: rock-solid standstill, zero creep, zero skid
+                        fx = fHoldX;
+                        fy = fHoldY;
+                        nextOmega = 0f;
+                        nextAngle = wheel.RotationAngle;
+                        slipRatio = 0f;
+                        slipAngle = 0f;
+                        skidIntensity = 0f;
                     }
-                }
-
-                // 2. Unconditionally stable semi-implicit longitudinal rotational solver
-                WheelDynamics.IntegrateContact(
-                    wheel.AngularVelocity,
-                    wheel.RotationAngle,
-                    driveTorque,
-                    brakeTorque,
-                    vx,
-                    radius,
-                    WheelInertia,
-                    tireParams.LongitudinalStiffness,
-                    maxFx,
-                    dt,
-                    out float nextOmega,
-                    out float nextAngle,
-                    out float slipRatio,
-                    out float fx);
-
-                // 3. Friction ellipse coupling
-                float normX = fx / Mathf.Max(maxFx, 0.001f);
-                float normY = rawFy / Mathf.Max(maxFy, 0.001f);
-                float combinedMagnitude = Mathf.Sqrt(normX * normX + normY * normY);
-                float fy = rawFy;
-                float skidIntensity = 0f;
-
-                if (combinedMagnitude > 1.0f)
-                {
-                    float scale = 1.0f / combinedMagnitude;
-                    fx *= scale;
-                    fy *= scale;
-                    skidIntensity = 1.0f;
+                    else
+                    {
+                        // Saturated slide (slope exceeds friction limit or weak brakes):
+                        // Scale holding demand to friction boundary
+                        float scale = 1.0f / stictionMagnitude;
+                        fx = fHoldX * scale;
+                        fy = fHoldY * scale;
+                        nextOmega = 0f;
+                        nextAngle = wheel.RotationAngle;
+                        float vDenom = Mathf.Max(contactSpeed, 0.5f);
+                        slipRatio = -vx / vDenom;
+                        slipAngle = -vy / vDenom;
+                        skidIntensity = 1.0f;
+                    }
                 }
                 else
                 {
-                    skidIntensity = combinedMagnitude;
+                    // Dynamic Brush Tire Model (driving, rolling, or high-speed braking/sliding)
+
+                    // 1. Lateral slip angle and lateral force calculation
+                    float vDenom = Mathf.Max(contactSpeed, 0.5f);
+                    slipAngle = -vy / vDenom;
+
+                    float sigmaY = (tireParams.LateralStiffness * slipAngle) / maxFy;
+                    float rawFy = maxFy * Mathf.Clamp(sigmaY, -1f, 1f);
+
+                    // Numerical chatter prevention at low speeds (< 1.0 m/s):
+                    if (contactSpeed < 1.0f)
+                    {
+                        float maxLateralStoppingForce = (cornerMass * Mathf.Abs(vy)) / dt;
+                        if (Mathf.Abs(rawFy) > maxLateralStoppingForce)
+                        {
+                            rawFy = Mathf.Sign(rawFy) * maxLateralStoppingForce;
+                        }
+                    }
+
+                    // 2. Unconditionally stable semi-implicit longitudinal rotational solver
+                    WheelDynamics.IntegrateContact(
+                        wheel.AngularVelocity,
+                        wheel.RotationAngle,
+                        driveTorque,
+                        brakeTorque,
+                        vx,
+                        radius,
+                        WheelInertia,
+                        tireParams.LongitudinalStiffness,
+                        maxFx,
+                        dt,
+                        out nextOmega,
+                        out nextAngle,
+                        out slipRatio,
+                        out fx);
+
+                    // Numerical chatter prevention for longitudinal forces at low speeds when not driving
+                    if (contactSpeed < 1.0f && !isDriving)
+                    {
+                        float maxLongStoppingForce = (cornerMass * Mathf.Abs(vx)) / dt;
+                        if (Mathf.Sign(fx) != Mathf.Sign(vx) && Mathf.Abs(fx) > maxLongStoppingForce)
+                        {
+                            fx = -Mathf.Sign(vx) * maxLongStoppingForce;
+                        }
+                    }
+
+                    // 3. Friction ellipse coupling
+                    float normX = fx / Mathf.Max(maxFx, 0.001f);
+                    float normY = rawFy / Mathf.Max(maxFy, 0.001f);
+                    float combinedMagnitude = Mathf.Sqrt(normX * normX + normY * normY);
+                    fy = rawFy;
+
+                    if (combinedMagnitude > 1.0f)
+                    {
+                        float scale = 1.0f / combinedMagnitude;
+                        fx *= scale;
+                        fy *= scale;
+                        skidIntensity = 1.0f;
+                    }
+                    else
+                    {
+                        skidIntensity = combinedMagnitude;
+                    }
                 }
 
                 // Apply resultant 3D tire forces to vehicle chassis

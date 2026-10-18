@@ -104,11 +104,18 @@ namespace VALYR.Core.Math
                 appliedFx = Mathf.Sign(rawFx) * maxFx;
 
                 float netTorque = driveTorque - appliedFx * r - bearingDrag;
-                float freeAccel = netTorque / wheelInertia;
-                float stopBrakeTorque = (Mathf.Abs(currentOmega + freeAccel * dt) * wheelInertia) / dt;
-                float effectiveBrake = Mathf.Min(brakeTorque, stopBrakeTorque) * Mathf.Sign(currentOmega + freeAccel * dt);
+                if (targetOmega == 0f && brakeTorque >= Mathf.Abs(netTorque))
+                {
+                    nextOmega = 0f;
+                }
+                else
+                {
+                    float freeAccel = netTorque / wheelInertia;
+                    float stopBrakeTorque = (Mathf.Abs(currentOmega + freeAccel * dt) * wheelInertia) / dt;
+                    float effectiveBrake = Mathf.Min(brakeTorque, stopBrakeTorque) * Mathf.Sign(currentOmega + freeAccel * dt);
 
-                nextOmega = currentOmega + ((netTorque - effectiveBrake) / wheelInertia) * dt;
+                    nextOmega = currentOmega + ((netTorque - effectiveBrake) / wheelInertia) * dt;
+                }
                 longitudinalSlip = (nextOmega * r - forwardSpeed) / vDenom;
             }
             else
