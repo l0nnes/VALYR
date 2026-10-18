@@ -39,6 +39,8 @@ namespace VALYR.Runtime.Visual
         // Cached local offsets and references
         private Vector3[] _baseLocalPositions;
         private Vector3[] _currentLocalPositions;
+        private float[] _currentSteerAngles;
+        private float[] _visualRollAngles;
         private Transform[] _wheels;
         private Transform[] _anchors;
 
@@ -57,10 +59,10 @@ namespace VALYR.Runtime.Visual
 
         public void AutoFindReferences()
         {
-            if (FrontLeftWheel == null) FrontLeftWheel = transform.Find("Wheels/Meshes/FrontLeftWheel");
-            if (FrontRightWheel == null) FrontRightWheel = transform.Find("Wheels/Meshes/FrontRightWheel");
-            if (RearLeftWheel == null) RearLeftWheel = transform.Find("Wheels/Meshes/RearLeftWheel");
-            if (RearRightWheel == null) RearRightWheel = transform.Find("Wheels/Meshes/RearRightWheel");
+            if (FrontLeftWheel == null) FrontLeftWheel = transform.Find("Wheels/Meshes/FrontLeftWheel") ?? transform.Find("Graphics/Meshes/Wheels/Meshes/Wheel Mesh Front Left");
+            if (FrontRightWheel == null) FrontRightWheel = transform.Find("Wheels/Meshes/FrontRightWheel") ?? transform.Find("Graphics/Meshes/Wheels/Meshes/Wheel Mesh Front Right");
+            if (RearLeftWheel == null) RearLeftWheel = transform.Find("Wheels/Meshes/RearLeftWheel") ?? transform.Find("Graphics/Meshes/Wheels/Meshes/Wheel Mesh Rear Left");
+            if (RearRightWheel == null) RearRightWheel = transform.Find("Wheels/Meshes/RearRightWheel") ?? transform.Find("Graphics/Meshes/Wheels/Meshes/Wheel Mesh Rear Right");
 
             if (FL_SuspensionAnchor == null) FL_SuspensionAnchor = transform.Find("Suspension/FL_Suspension");
             if (FR_SuspensionAnchor == null) FR_SuspensionAnchor = transform.Find("Suspension/FR_Suspension");
@@ -93,6 +95,8 @@ namespace VALYR.Runtime.Visual
 
             _baseLocalPositions = new Vector3[4];
             _currentLocalPositions = new Vector3[4];
+            _currentSteerAngles = new float[4];
+            _visualRollAngles = new float[4];
 
             for (int i = 0; i < 4; i++)
             {
@@ -109,6 +113,8 @@ namespace VALYR.Runtime.Visual
         /// </summary>
         public void UpdateWheelsView(in VehicleState state, float dt)
         {
+            if (_wheels == null) return;
+
             for (int i = 0; i < 4; i++)
             {
                 Transform wheelTransform = _wheels[i];
@@ -116,42 +122,62 @@ namespace VALYR.Runtime.Visual
                     continue;
 
                 WheelState wheelState = state.Wheels[i];
-                Vector3 basePos = _baseLocalPositions[i];
 
-                // 1. Calculate vertical position directly from suspension length below anchor
-                if (_anchors[i] != null)
-                {
-                    Vector3 anchorLocal = wheelTransform.parent.InverseTransformPoint(_anchors[i].position);
-                    float suspLength = wheelState.SuspensionLength > 0.001f ? wheelState.SuspensionLength : 0.38f;
-                    basePos = new Vector3(anchorLocal.x, anchorLocal.y - suspLength, anchorLocal.z);
-                }
-                else
-                {
-                    basePos.y = _baseLocalPositions[i].y + wheelState.SuspensionCompression;
-                }
+                // 1. Lock longitudinal (Z) and lateral (X) position rigidly to authored wheel well
+                // This completely prevents wheels from lagging behind or drifting horizontally relative to the chassis
+                _currentLocalPositions[i].x = _baseLocalPositions[i].x;
+                _currentLocalPositions[i].z = _baseLocalPositions[i].z;
 
-                // 2. Motion smoothing
+                // 2. Vertical suspension travel (+ compression = up into arch, - rebound = down)
+                float targetY = _baseLocalPositions[i].y + wheelState.SuspensionCompression;
+
                 if (SuspensionPositionSmoothRate > 0.01f && dt > 0f)
                 {
-                    _currentLocalPositions[i] = Vector3.Lerp(
-                        _currentLocalPositions[i],
-                        basePos,
+                    _currentLocalPositions[i].y = Mathf.Lerp(
+                        _currentLocalPositions[i].y,
+                        targetY,
                         1f - Mathf.Exp(-SuspensionPositionSmoothRate * dt));
                 }
                 else
                 {
-                    _currentLocalPositions[i] = basePos;
+                    _currentLocalPositions[i].y = targetY;
                 }
 
                 wheelTransform.localPosition = _currentLocalPositions[i];
 
-                // 3. Wheel rotation (Steer around Y + Roll around X)
+                // 3. Smooth continuous wheel rotation (Steer around Y + Roll around X)
                 float steerDeg = wheelState.SteerAngle * Mathf.Rad2Deg;
-                float rollDeg = wheelState.RotationAngle * Mathf.Rad2Deg;
+                if (_currentSteerAngles == null || _currentSteerAngles.Length != 4)
+                    _currentSteerAngles = new float[4];
 
-                Quaternion steerRotation = Quaternion.Euler(0f, steerDeg, 0f);
-                Quaternion rollRotation = Quaternion.Euler(rollDeg, 0f, 0f);
+                if (dt > 0f)
+                {
+                    _currentSteerAngles[i] = Mathf.MoveTowardsAngle(_currentSteerAngles[i], steerDeg, 720f * dt);
+                }
+                else
+                {
+                    _currentSteerAngles[i] = steerDeg;
+                }
+                Quaternion steerRotation = Quaternion.Euler(0f, _currentSteerAngles[i], 0f);
 
+                // Integrate roll angle per frame using AngularVelocity to eliminate 50Hz tick stutter
+                if (_visualRollAngles == null || _visualRollAngles.Length != 4)
+                    _visualRollAngles = new float[4];
+
+                if (dt > 0f)
+                {
+                    _visualRollAngles[i] = Mathf.Repeat(_visualRollAngles[i] + wheelState.AngularVelocity * dt, Mathf.PI * 2f);
+                    float simRollDeg = wheelState.RotationAngle * Mathf.Rad2Deg;
+                    float currentRollDeg = _visualRollAngles[i] * Mathf.Rad2Deg;
+                    float blendedRollDeg = Mathf.MoveTowardsAngle(currentRollDeg, simRollDeg, 360f * dt);
+                    _visualRollAngles[i] = blendedRollDeg * Mathf.Deg2Rad;
+                }
+                else
+                {
+                    _visualRollAngles[i] = wheelState.RotationAngle;
+                }
+
+                Quaternion rollRotation = Quaternion.Euler(_visualRollAngles[i] * Mathf.Rad2Deg, 0f, 0f);
                 wheelTransform.localRotation = steerRotation * rollRotation;
             }
         }

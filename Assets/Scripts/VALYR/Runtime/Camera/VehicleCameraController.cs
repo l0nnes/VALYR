@@ -50,6 +50,7 @@ namespace VALYR.Runtime.Cameras
     /// Supports multiple camera modes (Chase Near, Chase Far, Cockpit, Bumper, Free Orbit),
     /// dynamic speed FOV expansion, smooth damped look-around with auto-recentering, and quick Look Back.
     /// </summary>
+    [DefaultExecutionOrder(2000)]
     public class VehicleCameraController : MonoBehaviour
     {
         [Header("Target Vehicle")]
@@ -178,6 +179,12 @@ namespace VALYR.Runtime.Cameras
         private InputAction _lookBackAction;
         private InputAction _lookAction;
 
+        [Header("Cinemachine Manual Update")]
+        [Tooltip("If true, drives CinemachineBrain.ManualUpdate() directly in LateUpdate for zero-latency jitter-free tracking.")]
+        public bool DriveManualUpdate = true;
+
+        private CinemachineBrain _cinemachineBrain;
+
         // Internal orbit target and smoothed state
         private float _targetYaw;
         private float _targetPitch;
@@ -208,20 +215,61 @@ namespace VALYR.Runtime.Cameras
 
             if (_cockpitAnchor == null)
             {
-                _cockpitAnchor = transform.Find("CameraAnchors/CockpitAnchor") ?? transform.Find("CockpitAnchor");
+                _cockpitAnchor = transform.Find("Graphics/CameraAnchors/CockpitAnchor")
+                    ?? transform.Find("CameraAnchors/CockpitAnchor")
+                    ?? transform.Find("CockpitAnchor");
+            }
+
+            if (_bumperAnchor == null)
+            {
+                _bumperAnchor = transform.Find("Graphics/CameraAnchors/BumperAnchor")
+                    ?? transform.Find("CameraAnchors/BumperAnchor")
+                    ?? transform.Find("BumperAnchor");
+            }
+
+            if (_lookTarget == null)
+            {
+                _lookTarget = transform.Find("Graphics/CameraAnchors/LookTarget")
+                    ?? transform.Find("CameraAnchors/LookTarget")
+                    ?? transform.Find("LookTarget");
             }
 
             InitializeInputActions();
+            EnsureCinemachineBrain();
+        }
+
+        private void EnsureCinemachineBrain()
+        {
+            if (_cinemachineBrain == null)
+            {
+                var cam = Camera.main;
+                if (cam != null)
+                {
+                    _cinemachineBrain = cam.GetComponent<CinemachineBrain>();
+                }
+                if (_cinemachineBrain == null)
+                {
+                    _cinemachineBrain = FindAnyObjectByType<CinemachineBrain>();
+                }
+            }
+
+            if (_cinemachineBrain != null && DriveManualUpdate)
+            {
+                _cinemachineBrain.UpdateMethod = CinemachineBrain.UpdateMethods.ManualUpdate;
+            }
         }
 
         private void Start()
         {
+            EnsureCinemachineBrain();
             EnsureCameraSlots();
             ApplyCameraPriorities();
         }
 
         private void OnEnable()
         {
+            EnsureCinemachineBrain();
+
             if (_actionMap != null && !_actionMap.enabled)
             {
                 _actionMap.Enable();
@@ -340,15 +388,7 @@ namespace VALYR.Runtime.Cameras
         {
             float dt = Time.deltaTime;
 
-            // 1. Calculate vehicle speed
-            if (_vehicle != null && _vehicle.Rigidbody != null)
-            {
-                Vector3 vel = _vehicle.Rigidbody.linearVelocity;
-                float forwardSpeed = Vector3.Dot(vel, _vehicle.transform.forward);
-                _currentSpeedKmh = Mathf.Abs(forwardSpeed) * 3.6f;
-            }
-
-            // 2. Read Look Back input
+            // 1. Read Look Back input
             bool lookBackHeld = false;
             if (_lookBackAction != null)
             {
@@ -363,7 +403,7 @@ namespace VALYR.Runtime.Cameras
             var activeSlot = CurrentSlot;
             bool isCockpit = (activeSlot != null && activeSlot.Mode == VehicleCameraMode.Cockpit);
 
-            // 3. Read and process manual look/orbit input
+            // 2. Read and process manual look/orbit input
             Vector2 rawLook = Vector2.zero;
             if (_lookAction != null)
             {
@@ -420,7 +460,7 @@ namespace VALYR.Runtime.Cameras
                 }
             }
 
-            // 4. Auto-recenter when not actively looking
+            // 3. Auto-recenter when not actively looking
             if (!hasLookInput && !_isLookingBack)
             {
                 if (isCockpit && EnableCockpitHeadLook)
@@ -440,8 +480,25 @@ namespace VALYR.Runtime.Cameras
                     }
                 }
             }
+        }
 
-            // 5. Smoothly damp current yaw & pitch towards target
+        private void LateUpdate()
+        {
+            float dt = Time.deltaTime;
+
+            // 1. Calculate and smoothly filter vehicle speed to eliminate Z-axis pullback jitter
+            if (_vehicle != null && _vehicle.Rigidbody != null)
+            {
+                Vector3 vel = _vehicle.Rigidbody.linearVelocity;
+                float forwardSpeed = Vector3.Dot(vel, _vehicle.transform.forward);
+                float rawSpeedKmh = Mathf.Abs(forwardSpeed) * 3.6f;
+                _currentSpeedKmh = Mathf.MoveTowards(_currentSpeedKmh, rawSpeedKmh, 80f * dt);
+            }
+
+            var activeSlot = CurrentSlot;
+            bool isCockpit = (activeSlot != null && activeSlot.Mode == VehicleCameraMode.Cockpit);
+
+            // 2. Smoothly damp current yaw & pitch towards target
             float desiredYaw;
             float desiredPitch;
             float currentDampTime;
@@ -462,7 +519,7 @@ namespace VALYR.Runtime.Cameras
             _currentYaw = Mathf.SmoothDampAngle(_currentYaw, desiredYaw, ref _yawVelocity, currentDampTime);
             _currentPitch = Mathf.SmoothDamp(_currentPitch, desiredPitch, ref _pitchVelocity, currentDampTime);
 
-            // 6. Update Dynamic FOV on the active camera
+            // 3. Update Dynamic FOV on the active camera
             if (activeSlot != null && activeSlot.Camera != null && activeSlot.EnableDynamicFOV)
             {
                 float speedRatio = Mathf.Clamp01(_currentSpeedKmh / Mathf.Max(1f, MaxFovSpeedKmh));
@@ -471,8 +528,18 @@ namespace VALYR.Runtime.Cameras
                 activeSlot.Camera.Lens.FieldOfView = Mathf.MoveTowards(currentFov, targetFov, FovLerpSpeed * 10f * dt);
             }
 
-            // 7. Update camera orientations
+            // 4. Update camera orientations and offsets
             UpdateCameraOrientations(activeSlot, isCockpit, dt);
+
+            // 5. If ManualUpdate mode is active, trigger CinemachineBrain right after vehicle positions are resolved
+            if (DriveManualUpdate)
+            {
+                EnsureCinemachineBrain();
+                if (_cinemachineBrain != null && _cinemachineBrain.UpdateMethod == CinemachineBrain.UpdateMethods.ManualUpdate)
+                {
+                    _cinemachineBrain.ManualUpdate();
+                }
+            }
         }
 
         private void UpdateCameraOrientations(VehicleCameraSlot slot, bool isCockpit, float dt)

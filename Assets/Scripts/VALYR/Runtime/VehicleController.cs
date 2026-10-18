@@ -117,6 +117,22 @@ namespace VALYR.Runtime
         public VehicleInput Input => _input;
         public Rigidbody Rigidbody => _rigidbody;
 
+        public void SetInput(in VehicleInput input)
+        {
+            _input = input;
+        }
+
+        public void SetState(in VehicleState state)
+        {
+            _state = state;
+        }
+
+        public void SetInputAndState(in VehicleInput input, in VehicleState state)
+        {
+            _input = input;
+            _state = state;
+        }
+
         private void Reset()
         {
             AutoFindWheelMounts();
