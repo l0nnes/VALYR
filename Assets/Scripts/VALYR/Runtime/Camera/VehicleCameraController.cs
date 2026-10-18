@@ -118,6 +118,44 @@ namespace VALYR.Runtime.Cameras
         [Tooltip("Optional: Require holding Right Mouse Button to rotate camera with mouse.")]
         public bool RequireRightClickForMouseLook = false;
 
+        [Header("Cockpit Head Look")]
+        [Tooltip("Enable free head rotation look-around in Cockpit first-person view.")]
+        public bool EnableCockpitHeadLook = true;
+
+        [Tooltip("Horizontal yaw rotation limits in degrees (negative = look left, positive = look right).")]
+        public Vector2 CockpitYawLimits = new Vector2(-105f, 105f);
+
+        [Tooltip("Vertical pitch rotation limits in degrees (negative = look up, positive = look down).")]
+        public Vector2 CockpitPitchLimits = new Vector2(-28f, 35f);
+
+        [Tooltip("Cockpit look-back yaw angle (degrees) to glance through the rear window when Look Back is held.")]
+        [Range(120f, 180f)]
+        public float CockpitLookBackYaw = 165f;
+
+        [Tooltip("Cockpit mouse look sensitivity (degrees per pixel).")]
+        [Range(0.01f, 1f)]
+        public float CockpitMouseSensitivity = 0.12f;
+
+        [Tooltip("Cockpit gamepad look sensitivity (degrees per second).")]
+        [Range(30f, 360f)]
+        public float CockpitGamepadSensitivity = 110f;
+
+        [Tooltip("Cockpit head rotation damping time (seconds).")]
+        [Range(0.02f, 0.2f)]
+        public float CockpitDamping = 0.06f;
+
+        [Tooltip("Enable auto-recentering head look forward in cockpit.")]
+        public bool EnableCockpitRecenter = true;
+
+        [Tooltip("Seconds of no look input before cockpit camera auto-recenters forward.")]
+        public float CockpitRecenterDelay = 1.2f;
+
+        [Tooltip("Speed (degrees/second) at which head returns to center forward.")]
+        public float CockpitRecenterSpeed = 110f;
+
+        [Tooltip("Require holding Right Mouse Button to rotate head in cockpit.")]
+        public bool RequireRightClickInCockpit = false;
+
         [Header("Input Actions Asset")]
         [Tooltip("Input Actions asset (e.g. GameInput). Can be assigned in Inspector or loaded automatically.")]
         [SerializeField] private InputActionAsset _inputActions;
@@ -166,6 +204,11 @@ namespace VALYR.Runtime.Cameras
             if (_vehicle == null)
             {
                 _vehicle = GetComponentInParent<VehicleController>() ?? GetComponent<VehicleController>();
+            }
+
+            if (_cockpitAnchor == null)
+            {
+                _cockpitAnchor = transform.Find("CameraAnchors/CockpitAnchor") ?? transform.Find("CockpitAnchor");
             }
 
             InitializeInputActions();
@@ -239,6 +282,7 @@ namespace VALYR.Runtime.Cameras
             if (_cameraSlots == null || _cameraSlots.Count <= 1)
                 return;
 
+            ResetLookAngles();
             _currentSlotIndex = (_currentSlotIndex + 1) % _cameraSlots.Count;
             ApplyCameraPriorities();
             OnCameraChanged?.Invoke(CurrentSlot);
@@ -255,11 +299,26 @@ namespace VALYR.Runtime.Cameras
             {
                 if (_cameraSlots[i].Mode == mode)
                 {
+                    ResetLookAngles();
                     _currentSlotIndex = i;
                     ApplyCameraPriorities();
                     OnCameraChanged?.Invoke(CurrentSlot);
                     return;
                 }
+            }
+        }
+
+        private void ResetLookAngles()
+        {
+            _targetYaw = 0f;
+            _targetPitch = 0f;
+            _currentYaw = 0f;
+            _currentPitch = 0f;
+            _yawVelocity = 0f;
+            _pitchVelocity = 0f;
+            if (_cockpitAnchor != null)
+            {
+                _cockpitAnchor.localRotation = Quaternion.identity;
             }
         }
 
@@ -301,6 +360,9 @@ namespace VALYR.Runtime.Cameras
             }
             _isLookingBack = lookBackHeld;
 
+            var activeSlot = CurrentSlot;
+            bool isCockpit = (activeSlot != null && activeSlot.Mode == VehicleCameraMode.Cockpit);
+
             // 3. Read and process manual look/orbit input
             Vector2 rawLook = Vector2.zero;
             if (_lookAction != null)
@@ -317,18 +379,19 @@ namespace VALYR.Runtime.Cameras
 
                 if (isGamepad)
                 {
-                    // Gamepad stick: rawLook is normalized [-1, 1], scales per second with dt
-                    deltaYaw = rawLook.x * GamepadSensitivity * dt;
-                    deltaPitch = rawLook.y * GamepadSensitivity * dt;
+                    float sens = (isCockpit && EnableCockpitHeadLook) ? CockpitGamepadSensitivity : GamepadSensitivity;
+                    deltaYaw = rawLook.x * sens * dt;
+                    deltaPitch = rawLook.y * sens * dt;
                     hasLookInput = true;
                 }
                 else
                 {
-                    // Mouse pointer: rawLook is pixel delta since last frame
-                    if (!RequireRightClickForMouseLook || (Mouse.current != null && Mouse.current.rightButton.isPressed))
+                    bool requireClick = (isCockpit && EnableCockpitHeadLook) ? RequireRightClickInCockpit : RequireRightClickForMouseLook;
+                    if (!requireClick || (Mouse.current != null && Mouse.current.rightButton.isPressed))
                     {
-                        deltaYaw = rawLook.x * MouseSensitivity;
-                        deltaPitch = rawLook.y * MouseSensitivity;
+                        float sens = (isCockpit && EnableCockpitHeadLook) ? CockpitMouseSensitivity : MouseSensitivity;
+                        deltaYaw = rawLook.x * sens;
+                        deltaPitch = rawLook.y * sens;
                         hasLookInput = true;
                     }
                     else
@@ -342,30 +405,64 @@ namespace VALYR.Runtime.Cameras
                 {
                     _targetYaw += deltaYaw;
                     _targetPitch -= deltaPitch;
-                    _targetPitch = Mathf.Clamp(_targetPitch, PitchLimits.x, PitchLimits.y);
+
+                    if (isCockpit && EnableCockpitHeadLook)
+                    {
+                        _targetPitch = Mathf.Clamp(_targetPitch, CockpitPitchLimits.x, CockpitPitchLimits.y);
+                        _targetYaw = Mathf.Clamp(_targetYaw, CockpitYawLimits.x, CockpitYawLimits.y);
+                    }
+                    else
+                    {
+                        _targetPitch = Mathf.Clamp(_targetPitch, PitchLimits.x, PitchLimits.y);
+                    }
+
                     _lastLookInputTime = Time.time;
                 }
             }
 
-            // 4. Auto-recenter behind the car when driving forward
+            // 4. Auto-recenter when not actively looking
             if (!hasLookInput && !_isLookingBack)
             {
-                if (Time.time - _lastLookInputTime > RecenterDelay && _currentSpeedKmh > MinRecenterSpeedKmh)
+                if (isCockpit && EnableCockpitHeadLook)
                 {
-                    _targetYaw = Mathf.MoveTowardsAngle(_targetYaw, 0f, RecenterSpeed * dt);
-                    _targetPitch = Mathf.MoveTowards(_targetPitch, 0f, RecenterSpeed * 0.5f * dt);
+                    if (EnableCockpitRecenter && Time.time - _lastLookInputTime > CockpitRecenterDelay)
+                    {
+                        _targetYaw = Mathf.MoveTowardsAngle(_targetYaw, 0f, CockpitRecenterSpeed * dt);
+                        _targetPitch = Mathf.MoveTowards(_targetPitch, 0f, CockpitRecenterSpeed * 0.5f * dt);
+                    }
+                }
+                else
+                {
+                    if (Time.time - _lastLookInputTime > RecenterDelay && _currentSpeedKmh > MinRecenterSpeedKmh)
+                    {
+                        _targetYaw = Mathf.MoveTowardsAngle(_targetYaw, 0f, RecenterSpeed * dt);
+                        _targetPitch = Mathf.MoveTowards(_targetPitch, 0f, RecenterSpeed * 0.5f * dt);
+                    }
                 }
             }
 
             // 5. Smoothly damp current yaw & pitch towards target
-            float desiredYaw = _isLookingBack ? 180f : _targetYaw;
-            float currentDampTime = _isLookingBack ? LookBackDamping : OrbitDamping;
+            float desiredYaw;
+            float desiredPitch;
+            float currentDampTime;
+
+            if (isCockpit && EnableCockpitHeadLook)
+            {
+                desiredYaw = _isLookingBack ? CockpitLookBackYaw : _targetYaw;
+                desiredPitch = _isLookingBack ? 0f : _targetPitch;
+                currentDampTime = _isLookingBack ? LookBackDamping : CockpitDamping;
+            }
+            else
+            {
+                desiredYaw = _isLookingBack ? 180f : _targetYaw;
+                desiredPitch = _isLookingBack ? 0f : _targetPitch;
+                currentDampTime = _isLookingBack ? LookBackDamping : OrbitDamping;
+            }
 
             _currentYaw = Mathf.SmoothDampAngle(_currentYaw, desiredYaw, ref _yawVelocity, currentDampTime);
-            _currentPitch = Mathf.SmoothDamp(_currentPitch, _targetPitch, ref _pitchVelocity, currentDampTime);
+            _currentPitch = Mathf.SmoothDamp(_currentPitch, desiredPitch, ref _pitchVelocity, currentDampTime);
 
             // 6. Update Dynamic FOV on the active camera
-            var activeSlot = CurrentSlot;
             if (activeSlot != null && activeSlot.Camera != null && activeSlot.EnableDynamicFOV)
             {
                 float speedRatio = Mathf.Clamp01(_currentSpeedKmh / Mathf.Max(1f, MaxFovSpeedKmh));
@@ -374,12 +471,26 @@ namespace VALYR.Runtime.Cameras
                 activeSlot.Camera.Lens.FieldOfView = Mathf.MoveTowards(currentFov, targetFov, FovLerpSpeed * 10f * dt);
             }
 
-            // 7. Update chase camera orientation
-            UpdateChaseCameraOrientation(activeSlot, dt);
+            // 7. Update camera orientations
+            UpdateCameraOrientations(activeSlot, isCockpit, dt);
         }
 
-        private void UpdateChaseCameraOrientation(VehicleCameraSlot slot, float dt)
+        private void UpdateCameraOrientations(VehicleCameraSlot slot, bool isCockpit, float dt)
         {
+            if (isCockpit && EnableCockpitHeadLook)
+            {
+                if (_cockpitAnchor != null)
+                {
+                    _cockpitAnchor.localRotation = Quaternion.Euler(_currentPitch, _currentYaw, 0f);
+                }
+                return;
+            }
+
+            if (_cockpitAnchor != null && _cockpitAnchor.localRotation != Quaternion.identity)
+            {
+                _cockpitAnchor.localRotation = Quaternion.identity;
+            }
+
             if (slot == null || slot.Camera == null) return;
 
             // Apply smooth damped orbit on Chase cameras

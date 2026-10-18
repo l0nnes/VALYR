@@ -183,6 +183,96 @@ namespace Unity.Input
                     ""interactions"": """",
                     ""initialStateCheck"": true,
                     ""priority"": 0
+                },
+                {
+                    ""name"": ""Toggle Headlights"",
+                    ""type"": ""Button"",
+                    ""id"": ""a6707ed3-a7e8-425e-8abe-e7edb6ea82f7"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false,
+                    ""priority"": 0
+                },
+                {
+                    ""name"": ""Toggle High Beam"",
+                    ""type"": ""Button"",
+                    ""id"": ""c56b38e4-3235-4046-8dd7-bd8169ef3c51"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false,
+                    ""priority"": 0
+                },
+                {
+                    ""name"": ""Left Turn Signal"",
+                    ""type"": ""Button"",
+                    ""id"": ""c49f8d6c-6b98-4608-99ac-71dbd1c61f98"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false,
+                    ""priority"": 0
+                },
+                {
+                    ""name"": ""Right Turn Signal"",
+                    ""type"": ""Button"",
+                    ""id"": ""d402d7e9-2b25-416d-a246-91b6b3e2f719"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false,
+                    ""priority"": 0
+                },
+                {
+                    ""name"": ""Hazard Lights"",
+                    ""type"": ""Button"",
+                    ""id"": ""aaef995f-ef12-481a-9261-52278a30f8c6"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false,
+                    ""priority"": 0
+                },
+                {
+                    ""name"": ""Toggle Left Door"",
+                    ""type"": ""Button"",
+                    ""id"": ""c26d3aab-f574-439a-bb82-11badefce26a"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false,
+                    ""priority"": 0
+                },
+                {
+                    ""name"": ""Toggle Right Door"",
+                    ""type"": ""Button"",
+                    ""id"": ""0775b401-7fb3-4d68-9250-0dd03db6199b"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false,
+                    ""priority"": 0
+                },
+                {
+                    ""name"": ""Toggle Hood"",
+                    ""type"": ""Button"",
+                    ""id"": ""95b50658-2cda-4294-af27-34fc66d12e42"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false,
+                    ""priority"": 0
+                },
+                {
+                    ""name"": ""Toggle Tailgate"",
+                    ""type"": ""Button"",
+                    ""id"": ""e2d02ca3-0135-4d47-8c84-8072e0f0023f"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false,
+                    ""priority"": 0
                 }
             ],
             ""bindings"": [
@@ -548,6 +638,193 @@ namespace Unity.Input
                     ""action"": ""Look"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""b1b68831-68a4-4e4d-ac3d-1d7afb618a4d"",
+                    ""path"": ""<Keyboard>/l"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Toggle Headlights"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""cbc54339-910f-4920-a3da-4e6161b33610"",
+                    ""path"": ""<Gamepad>/buttonNorth"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Toggle Headlights"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""2a996c36-b2ed-41d5-b5fd-112eec798769"",
+                    ""path"": ""<Keyboard>/k"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Toggle High Beam"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""95f62cc1-84cc-4d3c-a946-8a494000a5e1"",
+                    ""path"": ""<Keyboard>/q"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Left Turn Signal"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""158236b7-7269-4d03-ba7b-181298e3ebd6"",
+                    ""path"": ""<Gamepad>/dpad/left"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Left Turn Signal"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""08fed22a-7df9-4775-a903-5508001d9679"",
+                    ""path"": ""<Keyboard>/e"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Right Turn Signal"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""6411ea35-eaa0-45d6-9a11-07da62a34a20"",
+                    ""path"": ""<Gamepad>/dpad/right"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Right Turn Signal"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""e66721f1-b1b8-4228-8e63-b08a4236c3d2"",
+                    ""path"": ""<Keyboard>/h"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Hazard Lights"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""35af562f-e858-4964-a656-09b9722b791f"",
+                    ""path"": ""<Gamepad>/dpad/down"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Hazard Lights"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""da0395ae-9f55-46ad-90cc-03f9b100364d"",
+                    ""path"": ""<Keyboard>/1"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Toggle Left Door"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""e99f1cd5-4e0d-4f90-b2ba-ba4e9d4263a7"",
+                    ""path"": ""<Keyboard>/numpad1"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Toggle Left Door"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""4ca46b18-07fe-45a0-8210-a165cb2fd7cc"",
+                    ""path"": ""<Keyboard>/2"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Toggle Right Door"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""60a38f8a-2a37-4d16-8e1c-16cc72654981"",
+                    ""path"": ""<Keyboard>/numpad2"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Toggle Right Door"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""4ddfeea1-7e63-4ff0-93c1-144e1e979c3d"",
+                    ""path"": ""<Keyboard>/3"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Toggle Hood"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""01955413-6bad-4ced-acfc-b40eb2c2f963"",
+                    ""path"": ""<Keyboard>/numpad3"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Toggle Hood"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""7cf7a380-2117-4be2-8245-a1f0a0ca0c68"",
+                    ""path"": ""<Keyboard>/4"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Toggle Tailgate"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""8f804571-3cb2-4ef1-9876-123456789abc"",
+                    ""path"": ""<Keyboard>/numpad4"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Toggle Tailgate"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
                 }
             ]
         }
@@ -565,6 +842,15 @@ namespace Unity.Input
             m_Driving_ChangeCamera = m_Driving.FindAction("Change Camera", throwIfNotFound: true);
             m_Driving_LookBack = m_Driving.FindAction("Look Back", throwIfNotFound: true);
             m_Driving_Look = m_Driving.FindAction("Look", throwIfNotFound: true);
+            m_Driving_ToggleHeadlights = m_Driving.FindAction("Toggle Headlights", throwIfNotFound: true);
+            m_Driving_ToggleHighBeam = m_Driving.FindAction("Toggle High Beam", throwIfNotFound: true);
+            m_Driving_LeftTurnSignal = m_Driving.FindAction("Left Turn Signal", throwIfNotFound: true);
+            m_Driving_RightTurnSignal = m_Driving.FindAction("Right Turn Signal", throwIfNotFound: true);
+            m_Driving_HazardLights = m_Driving.FindAction("Hazard Lights", throwIfNotFound: true);
+            m_Driving_ToggleLeftDoor = m_Driving.FindAction("Toggle Left Door", throwIfNotFound: true);
+            m_Driving_ToggleRightDoor = m_Driving.FindAction("Toggle Right Door", throwIfNotFound: true);
+            m_Driving_ToggleHood = m_Driving.FindAction("Toggle Hood", throwIfNotFound: true);
+            m_Driving_ToggleTailgate = m_Driving.FindAction("Toggle Tailgate", throwIfNotFound: true);
         }
 
         ~@GameInput()
@@ -654,6 +940,15 @@ namespace Unity.Input
         private readonly InputAction m_Driving_ChangeCamera;
         private readonly InputAction m_Driving_LookBack;
         private readonly InputAction m_Driving_Look;
+        private readonly InputAction m_Driving_ToggleHeadlights;
+        private readonly InputAction m_Driving_ToggleHighBeam;
+        private readonly InputAction m_Driving_LeftTurnSignal;
+        private readonly InputAction m_Driving_RightTurnSignal;
+        private readonly InputAction m_Driving_HazardLights;
+        private readonly InputAction m_Driving_ToggleLeftDoor;
+        private readonly InputAction m_Driving_ToggleRightDoor;
+        private readonly InputAction m_Driving_ToggleHood;
+        private readonly InputAction m_Driving_ToggleTailgate;
         /// <summary>
         /// Provides access to input actions defined in input action map "Driving".
         /// </summary>
@@ -701,6 +996,42 @@ namespace Unity.Input
             /// Provides access to the underlying input action "Driving/Look".
             /// </summary>
             public InputAction @Look => m_Wrapper.m_Driving_Look;
+            /// <summary>
+            /// Provides access to the underlying input action "Driving/ToggleHeadlights".
+            /// </summary>
+            public InputAction @ToggleHeadlights => m_Wrapper.m_Driving_ToggleHeadlights;
+            /// <summary>
+            /// Provides access to the underlying input action "Driving/ToggleHighBeam".
+            /// </summary>
+            public InputAction @ToggleHighBeam => m_Wrapper.m_Driving_ToggleHighBeam;
+            /// <summary>
+            /// Provides access to the underlying input action "Driving/LeftTurnSignal".
+            /// </summary>
+            public InputAction @LeftTurnSignal => m_Wrapper.m_Driving_LeftTurnSignal;
+            /// <summary>
+            /// Provides access to the underlying input action "Driving/RightTurnSignal".
+            /// </summary>
+            public InputAction @RightTurnSignal => m_Wrapper.m_Driving_RightTurnSignal;
+            /// <summary>
+            /// Provides access to the underlying input action "Driving/HazardLights".
+            /// </summary>
+            public InputAction @HazardLights => m_Wrapper.m_Driving_HazardLights;
+            /// <summary>
+            /// Provides access to the underlying input action "Driving/ToggleLeftDoor".
+            /// </summary>
+            public InputAction @ToggleLeftDoor => m_Wrapper.m_Driving_ToggleLeftDoor;
+            /// <summary>
+            /// Provides access to the underlying input action "Driving/ToggleRightDoor".
+            /// </summary>
+            public InputAction @ToggleRightDoor => m_Wrapper.m_Driving_ToggleRightDoor;
+            /// <summary>
+            /// Provides access to the underlying input action "Driving/ToggleHood".
+            /// </summary>
+            public InputAction @ToggleHood => m_Wrapper.m_Driving_ToggleHood;
+            /// <summary>
+            /// Provides access to the underlying input action "Driving/ToggleTailgate".
+            /// </summary>
+            public InputAction @ToggleTailgate => m_Wrapper.m_Driving_ToggleTailgate;
             /// <summary>
             /// Provides access to the underlying input action map instance.
             /// </summary>
@@ -754,6 +1085,33 @@ namespace Unity.Input
                 @Look.started += instance.OnLook;
                 @Look.performed += instance.OnLook;
                 @Look.canceled += instance.OnLook;
+                @ToggleHeadlights.started += instance.OnToggleHeadlights;
+                @ToggleHeadlights.performed += instance.OnToggleHeadlights;
+                @ToggleHeadlights.canceled += instance.OnToggleHeadlights;
+                @ToggleHighBeam.started += instance.OnToggleHighBeam;
+                @ToggleHighBeam.performed += instance.OnToggleHighBeam;
+                @ToggleHighBeam.canceled += instance.OnToggleHighBeam;
+                @LeftTurnSignal.started += instance.OnLeftTurnSignal;
+                @LeftTurnSignal.performed += instance.OnLeftTurnSignal;
+                @LeftTurnSignal.canceled += instance.OnLeftTurnSignal;
+                @RightTurnSignal.started += instance.OnRightTurnSignal;
+                @RightTurnSignal.performed += instance.OnRightTurnSignal;
+                @RightTurnSignal.canceled += instance.OnRightTurnSignal;
+                @HazardLights.started += instance.OnHazardLights;
+                @HazardLights.performed += instance.OnHazardLights;
+                @HazardLights.canceled += instance.OnHazardLights;
+                @ToggleLeftDoor.started += instance.OnToggleLeftDoor;
+                @ToggleLeftDoor.performed += instance.OnToggleLeftDoor;
+                @ToggleLeftDoor.canceled += instance.OnToggleLeftDoor;
+                @ToggleRightDoor.started += instance.OnToggleRightDoor;
+                @ToggleRightDoor.performed += instance.OnToggleRightDoor;
+                @ToggleRightDoor.canceled += instance.OnToggleRightDoor;
+                @ToggleHood.started += instance.OnToggleHood;
+                @ToggleHood.performed += instance.OnToggleHood;
+                @ToggleHood.canceled += instance.OnToggleHood;
+                @ToggleTailgate.started += instance.OnToggleTailgate;
+                @ToggleTailgate.performed += instance.OnToggleTailgate;
+                @ToggleTailgate.canceled += instance.OnToggleTailgate;
             }
 
             /// <summary>
@@ -792,6 +1150,33 @@ namespace Unity.Input
                 @Look.started -= instance.OnLook;
                 @Look.performed -= instance.OnLook;
                 @Look.canceled -= instance.OnLook;
+                @ToggleHeadlights.started -= instance.OnToggleHeadlights;
+                @ToggleHeadlights.performed -= instance.OnToggleHeadlights;
+                @ToggleHeadlights.canceled -= instance.OnToggleHeadlights;
+                @ToggleHighBeam.started -= instance.OnToggleHighBeam;
+                @ToggleHighBeam.performed -= instance.OnToggleHighBeam;
+                @ToggleHighBeam.canceled -= instance.OnToggleHighBeam;
+                @LeftTurnSignal.started -= instance.OnLeftTurnSignal;
+                @LeftTurnSignal.performed -= instance.OnLeftTurnSignal;
+                @LeftTurnSignal.canceled -= instance.OnLeftTurnSignal;
+                @RightTurnSignal.started -= instance.OnRightTurnSignal;
+                @RightTurnSignal.performed -= instance.OnRightTurnSignal;
+                @RightTurnSignal.canceled -= instance.OnRightTurnSignal;
+                @HazardLights.started -= instance.OnHazardLights;
+                @HazardLights.performed -= instance.OnHazardLights;
+                @HazardLights.canceled -= instance.OnHazardLights;
+                @ToggleLeftDoor.started -= instance.OnToggleLeftDoor;
+                @ToggleLeftDoor.performed -= instance.OnToggleLeftDoor;
+                @ToggleLeftDoor.canceled -= instance.OnToggleLeftDoor;
+                @ToggleRightDoor.started -= instance.OnToggleRightDoor;
+                @ToggleRightDoor.performed -= instance.OnToggleRightDoor;
+                @ToggleRightDoor.canceled -= instance.OnToggleRightDoor;
+                @ToggleHood.started -= instance.OnToggleHood;
+                @ToggleHood.performed -= instance.OnToggleHood;
+                @ToggleHood.canceled -= instance.OnToggleHood;
+                @ToggleTailgate.started -= instance.OnToggleTailgate;
+                @ToggleTailgate.performed -= instance.OnToggleTailgate;
+                @ToggleTailgate.canceled -= instance.OnToggleTailgate;
             }
 
             /// <summary>
@@ -895,6 +1280,69 @@ namespace Unity.Input
             /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
             /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
             void OnLook(InputAction.CallbackContext context);
+            /// <summary>
+            /// Method invoked when associated input action "Toggle Headlights" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+            /// </summary>
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+            void OnToggleHeadlights(InputAction.CallbackContext context);
+            /// <summary>
+            /// Method invoked when associated input action "Toggle High Beam" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+            /// </summary>
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+            void OnToggleHighBeam(InputAction.CallbackContext context);
+            /// <summary>
+            /// Method invoked when associated input action "Left Turn Signal" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+            /// </summary>
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+            void OnLeftTurnSignal(InputAction.CallbackContext context);
+            /// <summary>
+            /// Method invoked when associated input action "Right Turn Signal" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+            /// </summary>
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+            void OnRightTurnSignal(InputAction.CallbackContext context);
+            /// <summary>
+            /// Method invoked when associated input action "Hazard Lights" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+            /// </summary>
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+            void OnHazardLights(InputAction.CallbackContext context);
+            /// <summary>
+            /// Method invoked when associated input action "Toggle Left Door" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+            /// </summary>
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+            void OnToggleLeftDoor(InputAction.CallbackContext context);
+            /// <summary>
+            /// Method invoked when associated input action "Toggle Right Door" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+            /// </summary>
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+            void OnToggleRightDoor(InputAction.CallbackContext context);
+            /// <summary>
+            /// Method invoked when associated input action "Toggle Hood" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+            /// </summary>
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+            void OnToggleHood(InputAction.CallbackContext context);
+            /// <summary>
+            /// Method invoked when associated input action "Toggle Tailgate" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+            /// </summary>
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+            void OnToggleTailgate(InputAction.CallbackContext context);
         }
     }
 }
