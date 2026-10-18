@@ -6,7 +6,7 @@ namespace VALYR.Multiplayer
     /// <summary>
     /// Custom NetworkRigidbodySettings implementing the Arctic Drive de-penetration pattern.
     /// Prevents vehicles from clipping into terrain, rocks, or falling through the world during hard teleports,
-    /// and smoothly positions kinematic remote vehicle proxies without gravity fighting or belly sagging.
+    /// while preserving natural dynamic PhysX collision impulses and momentum exchange.
     /// </summary>
     [CreateAssetMenu(fileName = "VehicleRigidbodySettings", menuName = "VALYR/Multiplayer/Vehicle Rigidbody Settings", order = 100)]
     public class VehicleRigidbodySettings : NetworkRigidbodySettings
@@ -28,7 +28,7 @@ namespace VALYR.Multiplayer
     }
 
     /// <summary>
-    /// Runtime instance that executes kinematic positioning and Arctic Drive de-penetration logic.
+    /// Runtime instance that executes dynamic spring-damper corrections and Arctic Drive de-penetration logic.
     /// </summary>
     public class VehicleRigidbodySettingsInstance : NetworkRigidbodySettingsInstance
     {
@@ -97,51 +97,22 @@ namespace VALYR.Multiplayer
                 }
             }
 
-            // Apply safe position & orientation to Rigidbody
-            if (rb.isKinematic)
-            {
-                rb.MovePosition(targetPos);
-                rb.MoveRotation(targetRot);
-            }
-            else
-            {
-                rb.position = targetPos;
-                rb.rotation = targetRot;
-                SetLinearVelocity(rb, ctx.targetLinearVelocity);
-                SetAngularVelocity(rb, ctx.targetAngularVelocity);
-            }
+            rb.position = targetPos;
+            rb.rotation = targetRot;
+            SetLinearVelocity(rb, ctx.targetLinearVelocity);
+            SetAngularVelocity(rb, ctx.targetAngularVelocity);
         }
 
         public override void ApplyPositionCorrection(in RigidbodyCorrectionContext ctx)
         {
-            var rb = ctx.rigidbody;
-            if (rb == null) return;
-
-            // When remote proxy is kinematic, directly move body to interpolated snapshot target.
-            // This prevents gravity from dropping the chassis down to the ground.
-            if (rb.isKinematic)
-            {
-                rb.MovePosition(ctx.targetPosition);
-            }
-            else
-            {
-                base.ApplyPositionCorrection(ctx);
-            }
+            // Base implementation applies PurrNet's calibrated spring-damper force.
+            // This preserves full PhysX collision impulses between dynamic vehicles!
+            base.ApplyPositionCorrection(ctx);
         }
 
         public override void ApplyRotationCorrection(in RigidbodyCorrectionContext ctx)
         {
-            var rb = ctx.rigidbody;
-            if (rb == null) return;
-
-            if (rb.isKinematic)
-            {
-                rb.MoveRotation(NormalizeQuaternion(ctx.targetRotation));
-            }
-            else
-            {
-                base.ApplyRotationCorrection(ctx);
-            }
+            base.ApplyRotationCorrection(ctx);
         }
     }
 }

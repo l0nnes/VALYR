@@ -10,7 +10,6 @@ namespace VALYR.Multiplayer
     /// Multiplayer Lobby and vehicle spawner manager.
     /// Controls PurrNet NetworkManager lifecycle (Host, Client, Server, Disconnect)
     /// and instantiates client-owned vehicles for joining players at designated spawn points.
-    /// Supports automatic offline vehicle spawning for instant local testing.
     /// </summary>
     public class MultiplayerLobbyManager : MonoBehaviour
     {
@@ -23,10 +22,6 @@ namespace VALYR.Multiplayer
         [Tooltip("Optional existing scene vehicle to assign to the host player.")]
         public NetworkVehicle SceneVehicle;
 
-        [Header("Offline / Singleplayer")]
-        [Tooltip("If true, automatically spawns a vehicle in offline mode so the player can test and drive immediately.")]
-        public bool AutoSpawnOfflineVehicle = true;
-
         [Header("Spawn Points")]
         [Tooltip("Transforms in scene where new vehicles will be spawned.")]
         public Transform[] SpawnPoints;
@@ -37,7 +32,6 @@ namespace VALYR.Multiplayer
 
         private readonly Dictionary<PlayerID, NetworkVehicle> _playerVehicles = new();
         private int _spawnCounter = 0;
-        private NetworkVehicle _offlineVehicle;
 
         public IReadOnlyDictionary<PlayerID, NetworkVehicle> PlayerVehicles => _playerVehicles;
 
@@ -52,7 +46,7 @@ namespace VALYR.Multiplayer
 
             if (SceneVehicle == null)
             {
-                var allVehicles = FindObjectsByType<NetworkVehicle>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+                var allVehicles = FindObjectsByType<NetworkVehicle>(FindObjectsInactive.Include);
                 for (int i = 0; i < allVehicles.Length; i++)
                 {
                     if (allVehicles[i].gameObject.scene == gameObject.scene)
@@ -71,10 +65,10 @@ namespace VALYR.Multiplayer
 
         private void Start()
         {
-            var net = NetworkManager.main;
-            if (net == null || net.isOffline)
+            if (SceneVehicle != null && !SceneVehicle.gameObject.activeSelf)
             {
-                SetupOfflineVehicle();
+                SceneVehicle.gameObject.SetActive(true);
+                SceneVehicle.UpdateAuthorityState();
             }
         }
 
@@ -88,31 +82,9 @@ namespace VALYR.Multiplayer
             UnsubscribeFromNetworkEvents();
         }
 
-        private void SetupOfflineVehicle()
-        {
-            if (SceneVehicle != null)
-            {
-                if (!SceneVehicle.gameObject.activeSelf)
-                    SceneVehicle.gameObject.SetActive(true);
-                SceneVehicle.UpdateAuthorityState();
-                return;
-            }
-
-            if (AutoSpawnOfflineVehicle && VehiclePrefab != null && _offlineVehicle == null)
-            {
-                Transform spawn = GetNextSpawnPoint();
-                Vector3 pos = spawn != null ? spawn.position : new Vector3(0f, 0.6f, 0f);
-                Quaternion rot = spawn != null ? spawn.rotation : Quaternion.identity;
-
-                _offlineVehicle = Instantiate(VehiclePrefab, pos, rot);
-                _offlineVehicle.name = "Offline_Truck";
-                _offlineVehicle.UpdateAuthorityState();
-            }
-        }
-
         private void AutoFindSpawnPoints()
         {
-            var points = FindObjectsByType<MultiplayerSpawnPoint>(FindObjectsSortMode.None);
+            var points = FindObjectsByType<MultiplayerSpawnPoint>();
             if (points != null && points.Length > 0)
             {
                 SpawnPoints = new Transform[points.Length];
@@ -153,13 +125,6 @@ namespace VALYR.Multiplayer
                 return;
             }
 
-            // Cleanup offline dummy vehicle before starting host
-            if (_offlineVehicle != null)
-            {
-                Destroy(_offlineVehicle.gameObject);
-                _offlineVehicle = null;
-            }
-
             ConfigureTransport(DefaultAddress, DefaultPort);
             net.StartHost();
         }
@@ -176,13 +141,6 @@ namespace VALYR.Multiplayer
                 return;
             }
 
-            // Cleanup offline dummy vehicle before connecting
-            if (_offlineVehicle != null)
-            {
-                Destroy(_offlineVehicle.gameObject);
-                _offlineVehicle = null;
-            }
-
             ConfigureTransport(address, port);
             net.StartClient();
         }
@@ -197,12 +155,6 @@ namespace VALYR.Multiplayer
             {
                 Debug.LogError("[MultiplayerLobbyManager] No NetworkManager found in scene!");
                 return;
-            }
-
-            if (_offlineVehicle != null)
-            {
-                Destroy(_offlineVehicle.gameObject);
-                _offlineVehicle = null;
             }
 
             ConfigureTransport(DefaultAddress, DefaultPort);
@@ -225,8 +177,11 @@ namespace VALYR.Multiplayer
 
             _playerVehicles.Clear();
 
-            // Re-setup offline vehicle
-            SetupOfflineVehicle();
+            if (SceneVehicle != null)
+            {
+                SceneVehicle.gameObject.SetActive(true);
+                SceneVehicle.UpdateAuthorityState();
+            }
         }
 
         private void ConfigureTransport(string address, ushort port)
@@ -256,8 +211,10 @@ namespace VALYR.Multiplayer
                 if (!SceneVehicle.gameObject.activeSelf)
                     SceneVehicle.gameObject.SetActive(true);
 
+                SceneVehicle.AssignedPlayerId = player;
                 SceneVehicle.GiveOwnership(player);
                 _playerVehicles[player] = SceneVehicle;
+                SceneVehicle.RebindCinemachineCameras();
                 return;
             }
 
@@ -266,6 +223,7 @@ namespace VALYR.Multiplayer
             {
                 if (SceneVehicle != null && !_playerVehicles.ContainsKey(player))
                 {
+                    SceneVehicle.AssignedPlayerId = player;
                     SceneVehicle.GiveOwnership(player);
                     _playerVehicles[player] = SceneVehicle;
                 }
@@ -278,8 +236,22 @@ namespace VALYR.Multiplayer
 
             NetworkVehicle newCar = Instantiate(VehiclePrefab, pos, rot);
             newCar.name = $"NetworkTruck_Player_{player.id}";
+            newCar.AssignedPlayerId = player;
+
+            // Register and spawn with PurrNet NetworkManager before granting ownership
+            if (!newCar.isSpawned)
+            {
+                net.Spawn(newCar.gameObject);
+            }
+
             newCar.GiveOwnership(player);
             _playerVehicles[player] = newCar;
+
+            // If this is host, guarantee that Host camera rig remains focused on the Host vehicle
+            if (net.isHost && _playerVehicles.TryGetValue(net.localPlayer, out var hostCar) && hostCar != null)
+            {
+                hostCar.RebindCinemachineCameras();
+            }
         }
 
         private void HandlePlayerLeft(PlayerID player, bool asServer)

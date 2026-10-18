@@ -495,7 +495,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineCamera
   Priority:
     Enabled: 1
-    m_Value: 20
+    m_Value: 10
   OutputChannel: 1
   StandbyUpdate: 2
   m_StreamingVersion: 20241001
@@ -3292,7 +3292,7 @@ Camera:
     height: 1
   near clip plane: 0.1
   far clip plane: 5000
-  field of view: 60
+  field of view: 65
   orthographic: 0
   orthographic size: 10
   m_Depth: -1
@@ -3318,8 +3318,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.016122729, y: 0, z: 0, w: 0.99987006}
-  m_LocalPosition: {x: 0, y: 2.389, z: -5.2}
+  m_LocalRotation: {x: 0.06430382, y: 0, z: 0, w: 0.9979304}
+  m_LocalPosition: {x: 0, y: 3.289, z: -7.5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -14844,7 +14844,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1120049944
 Transform:
   m_ObjectHideFlags: 0
@@ -15207,7 +15207,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: VALYR.Multiplayer::VALYR.Multiplayer.MultiplayerLobbyManager
   VehiclePrefab: {fileID: 7242971327080911299, guid: c3569f30e2bdfb843ae6dc54f036089f, type: 3}
   SceneVehicle: {fileID: 0}
-  AutoSpawnOfflineVehicle: 1
   SpawnPoints:
   - {fileID: 616584704}
   - {fileID: 1332813137}
@@ -26154,6 +26153,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Spare Tire
       objectReference: {fileID: 0}
+    - target: {fileID: 8529581817390271988, guid: eae5b89c104ecbc44be0949d1ce0f946, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -26333,7 +26336,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!54 &1839004714
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -30320,7 +30323,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineCamera
   Priority:
     Enabled: 1
-    m_Value: 10
+    m_Value: 20
   OutputChannel: 1
   StandbyUpdate: 2
   m_StreamingVersion: 20241001
