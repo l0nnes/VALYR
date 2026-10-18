@@ -4,6 +4,7 @@ using System.Reflection;
 using UnityEngine;
 using Unity.Cinemachine;
 using PurrNet;
+using PurrNet.Prediction;
 using VALYR.Core;
 using VALYR.Runtime;
 using VALYR.Runtime.Input;
@@ -32,6 +33,7 @@ namespace VALYR.Multiplayer
         private VehicleVisualView _visualView;
         private PredictedVehicle _predictedVehicle;
         private Rigidbody _rigidbody;
+        private PredictedTransform _predictedTransform;
 
         // Modular addon components
         private NetworkVehicleDoors _netDoors;
@@ -79,6 +81,11 @@ namespace VALYR.Multiplayer
             get
             {
                 VehicleState s = _predictedVehicle != null ? _predictedVehicle.currentState.CoreState : (_controller != null ? _controller.State : default);
+                VehicleInput vi = _controller != null ? _controller.Input : default;
+                if (_predictedVehicle != null && vi.Throttle == 0f && vi.Brake == 0f && vi.Handbrake == 0f)
+                {
+                    vi = new VehicleInput(_predictedVehicle.currentState.Throttle, _predictedVehicle.currentState.Steer, _predictedVehicle.currentState.Brake, _predictedVehicle.currentState.Handbrake);
+                }
                 Vector3 vel = _rigidbody != null ? _rigidbody.linearVelocity : Vector3.zero;
                 float speedKmh = Vector3.Dot(vel, transform.forward) * 3.6f;
 
@@ -96,8 +103,8 @@ namespace VALYR.Multiplayer
                     WheelOmega1 = s.Wheels[1].AngularVelocity,
                     WheelOmega2 = s.Wheels[2].AngularVelocity,
                     WheelOmega3 = s.Wheels[3].AngularVelocity,
-                    IsBraking = _controller != null && (_controller.Input.Brake > 0.05f || (s.CurrentGear == -1 && _controller.Input.Throttle > 0.05f)),
-                    IsHandbraking = _controller != null && _controller.Input.Handbrake > 0.5f,
+                    IsBraking = vi.Brake > 0.05f || (s.CurrentGear == -1 && vi.Throttle > 0.05f),
+                    IsHandbraking = vi.Handbrake > 0.5f,
                     IsReversing = s.CurrentGear < 0
                 };
             }
@@ -118,6 +125,7 @@ namespace VALYR.Multiplayer
             if (_visualView == null) _visualView = GetComponent<VehicleVisualView>();
             if (_predictedVehicle == null) _predictedVehicle = GetComponent<PredictedVehicle>();
             if (_rigidbody == null) _rigidbody = GetComponent<Rigidbody>();
+            if (_predictedTransform == null) _predictedTransform = GetComponent<PredictedTransform>();
 
             if (_netDoors == null) _netDoors = GetComponent<NetworkVehicleDoors>();
             if (_netLights == null) _netLights = GetComponent<NetworkVehicleLights>();
@@ -254,9 +262,25 @@ namespace VALYR.Multiplayer
         public void RebindCinemachineCameras()
         {
             EnsureComponentsCached();
-            Transform lookTarget = transform.Find("LookTarget") ?? transform;
-            Transform cockpit = transform.Find("CameraAnchors/CockpitAnchor") ?? transform.Find("CockpitAnchor");
-            Transform bumper = transform.Find("CameraAnchors/BumperAnchor") ?? transform.Find("BumperAnchor");
+
+            Transform visualRoot = (_predictedTransform != null && _predictedTransform.graphics != null)
+                ? _predictedTransform.graphics
+                : (transform.Find("Graphics") ?? transform.Find("Meshes") ?? transform);
+
+            Transform lookTarget = transform.Find("Graphics/CameraAnchors/LookTarget")
+                ?? transform.Find("CameraAnchors/LookTarget")
+                ?? transform.Find("LookTarget")
+                ?? visualRoot;
+
+            Transform cockpit = transform.Find("Graphics/CameraAnchors/CockpitAnchor")
+                ?? transform.Find("CameraAnchors/CockpitAnchor")
+                ?? transform.Find("CockpitAnchor")
+                ?? visualRoot;
+
+            Transform bumper = transform.Find("Graphics/CameraAnchors/BumperAnchor")
+                ?? transform.Find("CameraAnchors/BumperAnchor")
+                ?? transform.Find("BumperAnchor")
+                ?? visualRoot;
 
             CinemachineCamera chaseNear = null;
             CinemachineCamera chaseFar = null;
@@ -275,32 +299,34 @@ namespace VALYR.Multiplayer
                 if (vcamName.Contains("cockpit") || vcamName.Contains("interior"))
                 {
                     cockpitCam = vcam;
-                    vcam.Target.TrackingTarget = cockpit != null ? cockpit : transform;
+                    vcam.Target.TrackingTarget = cockpit;
                     vcam.Target.LookAtTarget = null;
                 }
                 else if (vcamName.Contains("bumper") || vcamName.Contains("hood"))
                 {
                     bumperCam = vcam;
-                    vcam.Target.TrackingTarget = bumper != null ? bumper : transform;
+                    vcam.Target.TrackingTarget = bumper;
                     vcam.Target.LookAtTarget = null;
                 }
                 else if (vcamName.Contains("far"))
                 {
                     chaseFar = vcam;
-                    vcam.Target.TrackingTarget = transform;
+                    vcam.Target.TrackingTarget = visualRoot;
                     vcam.Target.LookAtTarget = lookTarget;
+                    ConfigureChaseDamping(vcam);
                 }
                 else if (vcamName.Contains("orbit") || vcamName.Contains("free"))
                 {
                     freeLook = vcam;
-                    vcam.Target.TrackingTarget = transform;
+                    vcam.Target.TrackingTarget = visualRoot;
                     vcam.Target.LookAtTarget = lookTarget;
                 }
                 else if (vcamName.Contains("near") || vcamName.Contains("chase"))
                 {
                     chaseNear = vcam;
-                    vcam.Target.TrackingTarget = transform;
+                    vcam.Target.TrackingTarget = visualRoot;
                     vcam.Target.LookAtTarget = lookTarget;
+                    ConfigureChaseDamping(vcam);
                 }
             }
 
@@ -340,6 +366,20 @@ namespace VALYR.Multiplayer
 
                     _cameraController.SetCameraMode(VehicleCameraMode.ChaseNear);
                 }
+            }
+        }
+
+        private static void ConfigureChaseDamping(CinemachineCamera vcam)
+        {
+            if (vcam == null) return;
+            if (vcam.TryGetComponent<CinemachineFollow>(out var follow))
+            {
+                follow.TrackerSettings.PositionDamping = new Vector3(0.08f, 0.08f, 0.08f);
+                follow.TrackerSettings.RotationDamping = new Vector3(0.08f, 0.08f, 0.08f);
+            }
+            if (vcam.TryGetComponent<CinemachineRotationComposer>(out var rotComp))
+            {
+                rotComp.Damping = new Vector2(0.08f, 0.08f);
             }
         }
     }

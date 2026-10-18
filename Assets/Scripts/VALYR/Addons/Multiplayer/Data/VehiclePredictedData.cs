@@ -152,22 +152,30 @@ namespace VALYR.Multiplayer
         public static void WritePredictedState(BitPacker packer, VehiclePredictedState state)
         {
             WriteVehicleState(packer, state.CoreState);
+            packer.WriteFloat(state.Throttle);
+            packer.WriteFloat(state.Steer);
+            packer.WriteFloat(state.Brake);
+            packer.WriteFloat(state.Handbrake);
         }
 
         public static void ReadPredictedState(BitPacker packer, ref VehiclePredictedState state)
         {
             ReadVehicleState(packer, ref state.CoreState);
+            state.Throttle = packer.ReadFloat();
+            state.Steer = packer.ReadFloat();
+            state.Brake = packer.ReadFloat();
+            state.Handbrake = packer.ReadFloat();
         }
 
         public static bool WritePredictedStateDelta(BitPacker packer, VehiclePredictedState oldValue, VehiclePredictedState newValue)
         {
-            WriteVehicleState(packer, newValue.CoreState);
+            WritePredictedState(packer, newValue);
             return true;
         }
 
         public static void ReadPredictedStateDelta(BitPacker packer, VehiclePredictedState oldValue, ref VehiclePredictedState value)
         {
-            ReadVehicleState(packer, ref value.CoreState);
+            ReadPredictedState(packer, ref value);
         }
 
         public static void WritePredictedInput(BitPacker packer, VehiclePredictedInput input)
@@ -231,6 +239,10 @@ namespace VALYR.Multiplayer
     public struct VehiclePredictedState : IPredictedData<VehiclePredictedState>, IPacked
     {
         public VehicleState CoreState;
+        public float Throttle;
+        public float Steer;
+        public float Brake;
+        public float Handbrake;
 
         public void Write(BitPacker packer) => VehiclePredictedRegistration.WritePredictedState(packer, this);
         public void Read(BitPacker packer) => VehiclePredictedRegistration.ReadPredictedState(packer, ref this);

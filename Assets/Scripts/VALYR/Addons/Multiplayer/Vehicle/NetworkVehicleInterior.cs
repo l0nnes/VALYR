@@ -92,7 +92,8 @@ namespace VALYR.Multiplayer
             if (_interiorAnimator == null)
             {
                 // Fallback auto-discovery if VehicleInteriorAnimator component is missing
-                _steeringWheel = transform.Find("Meshes/Interior/Interior Steering Wheel") ??
+                _steeringWheel = transform.Find("Graphics/Meshes/Interior/Interior Steering Wheel") ??
+                                 transform.Find("Meshes/Interior/Interior Steering Wheel") ??
                                  transform.Find("Interior Steering Wheel");
                 if (_steeringWheel != null) _baseSteeringRot = _steeringWheel.localRotation;
                 return;
@@ -101,7 +102,8 @@ namespace VALYR.Multiplayer
             _steeringWheel = SteeringWheelField?.GetValue(_interiorAnimator) as Transform;
             if (_steeringWheel == null)
             {
-                _steeringWheel = transform.Find("Meshes/Interior/Interior Steering Wheel");
+                _steeringWheel = transform.Find("Graphics/Meshes/Interior/Interior Steering Wheel") ??
+                                 transform.Find("Meshes/Interior/Interior Steering Wheel");
             }
             if (_steeringWheel != null) _baseSteeringRot = _steeringWheel.localRotation;
 
@@ -168,18 +170,16 @@ namespace VALYR.Multiplayer
 
         public void UpdateAuthorityState()
         {
-            bool isLocal = _netVehicle != null && _netVehicle.IsLocallyControlled;
-
             if (_interiorAnimator is MonoBehaviour animMb)
             {
-                // Disable on proxy so its Update() won't pull the steering wheel back to neutral
-                animMb.enabled = isLocal;
+                // Input and state are now properly replicated from driver to proxies; keep animator active on all machines
+                animMb.enabled = true;
             }
 
             if (_dashboardDisplay is MonoBehaviour dashMb)
             {
-                // Disable on proxy so its Update() won't read zero state from disabled VehicleController
-                dashMb.enabled = isLocal;
+                // Synchronized vehicle state is available; keep dashboard active on all machines
+                dashMb.enabled = true;
             }
         }
 
@@ -188,45 +188,55 @@ namespace VALYR.Multiplayer
             bool isLocal = _netVehicle != null && _netVehicle.IsLocallyControlled;
             if (isLocal) return;
 
-            // Remote proxy: animate steering wheel, pedals, and dashboard from synced state
+            bool hasActiveAnimator = _interiorAnimator != null && (_interiorAnimator as MonoBehaviour).isActiveAndEnabled;
+            bool hasActiveDashboard = _dashboardDisplay != null && (_dashboardDisplay as MonoBehaviour).isActiveAndEnabled;
+
+            if (hasActiveAnimator && hasActiveDashboard)
+                return;
+
             float dt = Time.deltaTime;
             VehicleNetworkState net = _netVehicle.SyncedState;
 
-            // 1. Interior Steering Wheel Rotation (turns around local Z matching front wheels)
-            if (_steeringWheel != null)
+            if (!hasActiveAnimator)
             {
-                // Max front wheel steer angle is ~35° (0.61 rad)
-                float steerNormalized = Mathf.Clamp(net.SteerAngle / 0.61f, -1f, 1f);
-                Quaternion targetSteering = _baseSteeringRot * Quaternion.Euler(0f, 0f, -steerNormalized * _maxSteeringRotation);
-                _steeringWheel.localRotation = Quaternion.Slerp(_steeringWheel.localRotation, targetSteering, 1f - Mathf.Exp(-_smoothingSpeed * dt));
+                // 1. Interior Steering Wheel Rotation (turns around local Z matching front wheels)
+                if (_steeringWheel != null)
+                {
+                    float steerNormalized = Mathf.Clamp(net.SteerAngle / 0.61f, -1f, 1f);
+                    Quaternion targetSteering = _baseSteeringRot * Quaternion.Euler(0f, 0f, -steerNormalized * _maxSteeringRotation);
+                    _steeringWheel.localRotation = Quaternion.Slerp(_steeringWheel.localRotation, targetSteering, 1f - Mathf.Exp(-_smoothingSpeed * dt));
+                }
+
+                // 2. Accelerator Pedal
+                if (_acceleratorPedal != null)
+                {
+                    float throttle = (net.EngineRpm > 1000f) ? Mathf.Clamp01((net.EngineRpm - 800f) / 3500f) : 0f;
+                    Quaternion targetAccel = _baseAccelRot * Quaternion.Euler(throttle * _accelMaxAngle, 0f, 0f);
+                    _acceleratorPedal.localRotation = Quaternion.Slerp(_acceleratorPedal.localRotation, targetAccel, 1f - Mathf.Exp(-_smoothingSpeed * dt));
+                }
+
+                // 3. Brake Pedal
+                if (_brakePedal != null)
+                {
+                    float brake = net.IsBraking ? 1f : 0f;
+                    Quaternion targetBrake = _baseBrakeRot * Quaternion.Euler(brake * _brakeMaxAngle, 0f, 0f);
+                    _brakePedal.localRotation = Quaternion.Slerp(_brakePedal.localRotation, targetBrake, 1f - Mathf.Exp(-_smoothingSpeed * dt));
+                }
+
+                // 4. Handbrake Lever
+                if (_handbrakeLever != null)
+                {
+                    float handbrake = net.IsHandbraking ? 1f : 0f;
+                    Quaternion targetHandbrake = _baseHandbrakeRot * Quaternion.Euler(-handbrake * _handbrakeMaxAngle, 0f, 0f);
+                    _handbrakeLever.localRotation = Quaternion.Slerp(_handbrakeLever.localRotation, targetHandbrake, 1f - Mathf.Exp(-_smoothingSpeed * dt));
+                }
             }
 
-            // 2. Accelerator Pedal
-            if (_acceleratorPedal != null)
+            // 5. Digital Dashboard Cluster fallback
+            if (!hasActiveDashboard)
             {
-                float throttle = (net.EngineRpm > 1000f) ? Mathf.Clamp01((net.EngineRpm - 800f) / 3500f) : 0f;
-                Quaternion targetAccel = _baseAccelRot * Quaternion.Euler(throttle * _accelMaxAngle, 0f, 0f);
-                _acceleratorPedal.localRotation = Quaternion.Slerp(_acceleratorPedal.localRotation, targetAccel, 1f - Mathf.Exp(-_smoothingSpeed * dt));
+                UpdateProxyDashboard(in net, dt);
             }
-
-            // 3. Brake Pedal
-            if (_brakePedal != null)
-            {
-                float brake = net.IsBraking ? 1f : 0f;
-                Quaternion targetBrake = _baseBrakeRot * Quaternion.Euler(brake * _brakeMaxAngle, 0f, 0f);
-                _brakePedal.localRotation = Quaternion.Slerp(_brakePedal.localRotation, targetBrake, 1f - Mathf.Exp(-_smoothingSpeed * dt));
-            }
-
-            // 4. Handbrake Lever
-            if (_handbrakeLever != null)
-            {
-                float handbrake = net.IsHandbraking ? 1f : 0f;
-                Quaternion targetHandbrake = _baseHandbrakeRot * Quaternion.Euler(-handbrake * _handbrakeMaxAngle, 0f, 0f);
-                _handbrakeLever.localRotation = Quaternion.Slerp(_handbrakeLever.localRotation, targetHandbrake, 1f - Mathf.Exp(-_smoothingSpeed * dt));
-            }
-
-            // 5. Digital Dashboard Cluster
-            UpdateProxyDashboard(in net, dt);
         }
 
         private void UpdateProxyDashboard(in VehicleNetworkState net, float dt)

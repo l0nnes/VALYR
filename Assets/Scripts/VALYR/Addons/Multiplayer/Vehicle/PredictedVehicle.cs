@@ -104,6 +104,11 @@ namespace VALYR.Multiplayer
             if (_controller == null)
                 return;
 
+            state.Throttle = input.Throttle;
+            state.Steer = input.Steer;
+            state.Brake = input.Brake;
+            state.Handbrake = input.Handbrake;
+
             var vi = new VehicleInput(input.Throttle, input.Steer, input.Brake, input.Handbrake);
             _controller.SimulateStep(in vi, ref state.CoreState, delta);
         }
@@ -112,7 +117,25 @@ namespace VALYR.Multiplayer
         {
             base.Update();
 
-            // Present smooth wheel visuals from current corrected predicted state
+            // Feed live driver input and reconciled state into VehicleController for visual animators, dashboard, and lights
+            if (_controller != null)
+            {
+                VehicleInput vi;
+                if (isController && _inputReader != null)
+                {
+                    vi = _inputReader.CurrentInput;
+                }
+                else
+                {
+                    vi = new VehicleInput(currentState.Throttle, currentState.Steer, currentState.Brake, currentState.Handbrake);
+                }
+                _controller.SetInputAndState(in vi, in currentState.CoreState);
+            }
+        }
+
+        private void LateUpdate()
+        {
+            // Present smooth wheel visuals from current corrected predicted state after PredictionManager has positioned Graphics
             if (_visualView != null)
             {
                 _visualView.UpdateWheelsView(in currentState.CoreState, Time.deltaTime);

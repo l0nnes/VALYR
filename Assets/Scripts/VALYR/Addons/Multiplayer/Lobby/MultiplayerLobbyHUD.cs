@@ -22,7 +22,7 @@ namespace VALYR.Multiplayer
         [Header("Window Layout")]
         public Rect WindowRect = new Rect(20, 20, 320, 260);
 
-        private bool _isOpen = true;
+        private bool _isOpen;
         private GUIStyle _windowStyle;
         private GUIStyle _buttonStyle;
         private GUIStyle _labelStyle;
