@@ -10416,168 +10416,32 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 913f9a5b20dbb4749a34eae3a26b181e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: VALYR.Runtime::VALYR.Runtime.VehicleController
-  ChassisConfig:
-    WheelOffsets:
-      FL: {x: -0.7, y: 0.655, z: 1.25}
-      FR: {x: 0.7, y: 0.655, z: 1.25}
-      RL: {x: -0.7, y: 0.655, z: -1.2}
-      RR: {x: 0.7, y: 0.655, z: -1.2}
-    WheelRadii:
-      FL: 0.31
-      FR: 0.31
-      RL: 0.31
-      RR: 0.31
-    ChassisMass: 1500
+  Preset: {fileID: 11400000, guid: 313658c175191d44d9a760be526d89ce, type: 2}
+  WheelMounts:
+    FrontLeft: {fileID: 1457926696}
+    FrontRight: {fileID: 98568828}
+    RearLeft: {fileID: 541414195}
+    RearRight: {fileID: 1048827390}
+  WheelRadius: 0.31
+  ChassisMass: 1180
+  CenterOfMass: {x: 0, y: -0.22, z: 0.12}
   GroundLayers:
     serializedVersion: 2
     m_Bits: 4294967283
   Suspension:
-    ModuleId: Suspension.Raycast
-    IsEnabled: 1
-    FrontAxle:
-      RestLength: 0.35
-      MaxTravel: 0.25
-      SpringStiffness: 38000
-      DamperCompressionRate: 4200
-      DamperReboundRate: 5600
-      BumpStopThresholdRatio: 0.8
-      BumpStopStiffness: 160000
-    RearAxle:
-      RestLength: 0.35
-      MaxTravel: 0.25
-      SpringStiffness: 34000
-      DamperCompressionRate: 3800
-      DamperReboundRate: 5200
-      BumpStopThresholdRatio: 0.8
-      BumpStopStiffness: 160000
-    SurfaceLayers:
-      serializedVersion: 2
-      m_Bits: 4294967283
+    rid: 6796886620113993806
   Steering:
-    ModuleId: Steering.Direct
-    IsEnabled: 1
-    MaxSteerAngleDeg: 36
-    EnableSpeedSensitivity: 1
-    MinSteerAngleAtHighSpeedDeg: 12
-    HighSpeedThreshold: 40
-    SteeringResponseRate: 16
-    UseAckermann: 1
+    rid: 6796886620113993807
   Engine:
-    ModuleId: Powertrain.Engine
-    IsEnabled: 1
-    IdleRpm: 850
-    RevLimiterRpm: 7000
-    MaxRpm: 7500
-    StallRpm: 2300
-    MaxTorque: 420
-    EngineBrakingTorque: 50
-    FlywheelInertia: 0.22
-    TorqueConverterMultiplication: 1.85
-    TorqueCurve:
-      serializedVersion: 2
-      m_Curve:
-      - serializedVersion: 3
-        time: 0
-        value: 0.45
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 0.2
-        value: 0.75
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 0.55
-        value: 1
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 0.85
-        value: 0.9
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 1
-        value: 0.7
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      m_PreInfinity: 2
-      m_PostInfinity: 2
-      m_RotationOrder: 4
+    rid: 6796886620113993808
   Transmission:
-    ModuleId: Powertrain.Transmission
-    IsEnabled: 1
-    Drivetrain: 0
-    FrontTorqueSplitAwd: 0.4
-    ReverseGearRatio: -3.5
-    ForwardGearRatios:
-    - 3.82
-    - 2.36
-    - 1.69
-    - 1.31
-    - 1
-    - 0.79
-    FinalDriveRatio: 3.9
-    TransmissionEfficiency: 0.92
-    AutomaticShift: 1
-    ShiftUpRpm: 6200
-    ShiftDownRpm: 2500
-    ShiftDuration: 0.2
-    MaxBrakeTorque: 2500
-    FrontBrakeBias: 0.65
-    MaxHandbrakeTorque: 3500
-  AntiRollBar:
-    ModuleId: Assists.AntiRollBar
-    IsEnabled: 1
-    FrontStiffness: 8000
-    RearStiffness: 5000
-  Abs:
-    ModuleId: Assists.ABS
-    IsEnabled: 1
-    SlipThreshold: -0.18
-    MinSpeedThreshold: 2.5
-    PressureReleaseRatio: 0.35
-  Tcs:
-    ModuleId: Assists.TCS
-    IsEnabled: 1
-    SlipThreshold: 0.2
-    TorqueReductionRatio: 0.35
+    rid: 6796886620113993809
   Tires:
-    ModuleId: Tires.Brush
-    IsEnabled: 1
-    FrontTires:
-      LongitudinalStiffness: 25000
-      LateralStiffness: 20000
-      FrictionCoefficientX: 1.05
-      FrictionCoefficientY: 1
-      LowSpeedThreshold: 0.8
-    RearTires:
-      LongitudinalStiffness: 25000
-      LateralStiffness: 20000
-      FrictionCoefficientX: 1.05
-      FrictionCoefficientY: 1
-      LowSpeedThreshold: 0.8
-    WheelInertia: 1.5
+    rid: 6796886620113993810
+  Assists:
+  - rid: 6796886620113993811
+  - rid: 6796886620113993812
+  - rid: 6796886620113993813
   _state:
     Tick: 0
     EngineRpm: 0
@@ -10647,7 +10511,184 @@ MonoBehaviour:
     Brake: 0
     Handbrake: 0
   _visualView: {fileID: 834320178}
-  AutoApplyCivilianPreset: 1
+  ChassisConfig:
+    WheelOffsets:
+      FL: {x: -0.7, y: 0.655, z: 1.25}
+      FR: {x: 0.7, y: 0.655, z: 1.25}
+      RL: {x: -0.7, y: 0.655, z: -1.2}
+      RR: {x: 0.7, y: 0.655, z: -1.2}
+    WheelRadii:
+      FL: 0.31
+      FR: 0.31
+      RL: 0.31
+      RR: 0.31
+    ChassisMass: 1180
+  references:
+    version: 2
+    RefIds:
+    - rid: 6796886620113993806
+      type: {class: RaycastSuspensionModule, ns: VALYR.Modules.Suspension, asm: VALYR.Modules}
+      data:
+        ModuleId: Suspension.Raycast
+        IsEnabled: 1
+        FrontAxle:
+          RestLength: 0.35
+          MaxTravel: 0.22
+          SpringStiffness: 24000
+          DamperCompressionRate: 2200
+          DamperReboundRate: 3400
+          BumpStopThresholdRatio: 0.8
+          BumpStopStiffness: 140000
+        RearAxle:
+          RestLength: 0.35
+          MaxTravel: 0.22
+          SpringStiffness: 19000
+          DamperCompressionRate: 1800
+          DamperReboundRate: 2800
+          BumpStopThresholdRatio: 0.8
+          BumpStopStiffness: 140000
+        SurfaceLayers:
+          serializedVersion: 2
+          m_Bits: 4294967283
+    - rid: 6796886620113993807
+      type: {class: DirectSteeringModule, ns: VALYR.Modules.Steering, asm: VALYR.Modules}
+      data:
+        ModuleId: Steering.Direct
+        IsEnabled: 1
+        MaxSteerAngleDeg: 36
+        EnableSpeedSensitivity: 1
+        MinSteerAngleAtHighSpeedDeg: 12
+        HighSpeedThreshold: 40
+        SteeringResponseRate: 16
+        UseAckermann: 1
+    - rid: 6796886620113993808
+      type: {class: ArcadeEngineModule, ns: VALYR.Modules.Powertrain, asm: VALYR.Modules}
+      data:
+        ModuleId: Powertrain.Engine
+        IsEnabled: 1
+        IdleRpm: 750
+        RevLimiterRpm: 6500
+        MaxRpm: 6800
+        StallRpm: 2300
+        MaxTorque: 155
+        EngineBrakingTorque: 35
+        FlywheelInertia: 0.16
+        TorqueConverterMultiplication: 1.85
+        TorqueCurve:
+          serializedVersion: 2
+          m_Curve:
+          - serializedVersion: 3
+            time: 0
+            value: 0.65
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          - serializedVersion: 3
+            time: 0.25
+            value: 0.85
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          - serializedVersion: 3
+            time: 0.65
+            value: 1
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          - serializedVersion: 3
+            time: 0.9
+            value: 0.92
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          - serializedVersion: 3
+            time: 1
+            value: 0.78
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          m_PreInfinity: 2
+          m_PostInfinity: 2
+          m_RotationOrder: 4
+    - rid: 6796886620113993809
+      type: {class: SimpleTransmissionModule, ns: VALYR.Modules.Powertrain, asm: VALYR.Modules}
+      data:
+        ModuleId: Powertrain.Transmission
+        IsEnabled: 1
+        Drivetrain: 2
+        FrontTorqueSplitAwd: 0.5
+        ReverseGearRatio: -3.487
+        ForwardGearRatios:
+        - 3.612
+        - 2.085
+        - 1.37
+        - 1.039
+        - 0.778
+        - 0.633
+        FinalDriveRatio: 3.943
+        TransmissionEfficiency: 0.9
+        AutomaticShift: 1
+        ShiftUpRpm: 5800
+        ShiftDownRpm: 1900
+        ShiftDuration: 0.25
+        MaxBrakeTorque: 1800
+        FrontBrakeBias: 0.72
+        MaxHandbrakeTorque: 2400
+    - rid: 6796886620113993810
+      type: {class: BrushTireModule, ns: VALYR.Modules.Tires, asm: VALYR.Modules}
+      data:
+        ModuleId: Tires.Brush
+        IsEnabled: 1
+        FrontTires:
+          LongitudinalStiffness: 22000
+          LateralStiffness: 18000
+          FrictionCoefficientX: 1
+          FrictionCoefficientY: 0.95
+          LowSpeedThreshold: 0.5
+        RearTires:
+          LongitudinalStiffness: 22000
+          LateralStiffness: 18000
+          FrictionCoefficientX: 1
+          FrictionCoefficientY: 0.95
+          LowSpeedThreshold: 0.5
+        WheelInertia: 1.1
+    - rid: 6796886620113993811
+      type: {class: AntiRollBarModule, ns: VALYR.Modules.Assists, asm: VALYR.Modules}
+      data:
+        ModuleId: Assists.AntiRollBar
+        IsEnabled: 1
+        FrontStiffness: 4500
+        RearStiffness: 2200
+    - rid: 6796886620113993812
+      type: {class: AbsModule, ns: VALYR.Modules.Assists, asm: VALYR.Modules}
+      data:
+        ModuleId: Assists.ABS
+        IsEnabled: 1
+        SlipThreshold: -0.18
+        MinSpeedThreshold: 2.5
+        PressureReleaseRatio: 0.35
+    - rid: 6796886620113993813
+      type: {class: TcsModule, ns: VALYR.Modules.Assists, asm: VALYR.Modules}
+      data:
+        ModuleId: Assists.TCS
+        IsEnabled: 1
+        SlipThreshold: 0.2
+        TorqueReductionRatio: 0.35
 --- !u!114 &834320178
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10668,7 +10709,7 @@ MonoBehaviour:
   FR_SuspensionAnchor: {fileID: 98568828}
   RL_SuspensionAnchor: {fileID: 541414195}
   RR_SuspensionAnchor: {fileID: 1048827390}
-  SuspensionRestLength: 0.345
+  SuspensionRestLength: 0.445
   SuspensionPositionSmoothRate: 25
 --- !u!114 &834320179
 MonoBehaviour:

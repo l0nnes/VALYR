@@ -104,7 +104,7 @@ namespace VALYR.Runtime.UI
 
                             // Suspension
                             float compCm = ws.SuspensionCompression * 100f;
-                            float restCm = _controller.Suspension.FrontAxle.RestLength * 100f;
+                            float restCm = (_controller.Suspension is VALYR.Modules.Suspension.RaycastSuspensionModule raySusp ? raySusp.FrontAxle.RestLength : 0.35f) * 100f;
                             GUILayout.Label($"Travel: {compCm:F1} cm / {restCm:F1} cm", _labelStyle);
                             GUILayout.Label($"Damper Vel: {ws.SuspensionVelocity:+0.00;-0.00;0.00} m/s", _labelStyle);
                             GUILayout.Label($"Load Fz: <b>{ws.NormalLoad:F0} N</b>", _labelStyle);

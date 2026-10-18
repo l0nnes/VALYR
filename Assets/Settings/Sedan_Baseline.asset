@@ -1,0 +1,200 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 18e7ed4ad5d9bfb428744c49e9042218, type: 3}
+  m_Name: Sedan_Baseline
+  m_EditorClassIdentifier: VALYR.Runtime::VALYR.Runtime.VehiclePreset
+  ChassisMass: 1180
+  CenterOfMass: {x: 0, y: -0.22, z: 0.12}
+  WheelRadius: 0.31
+  GroundLayers:
+    serializedVersion: 2
+    m_Bits: 4294967283
+  Suspension:
+    rid: 6796886620113993822
+  Steering:
+    rid: 6796886620113993823
+  Engine:
+    rid: 6796886620113993824
+  Transmission:
+    rid: 6796886620113993825
+  Tires:
+    rid: 6796886620113993826
+  Assists:
+  - rid: 6796886620113993827
+  - rid: 6796886620113993828
+  - rid: 6796886620113993829
+  references:
+    version: 2
+    RefIds:
+    - rid: 6796886620113993822
+      type: {class: RaycastSuspensionModule, ns: VALYR.Modules.Suspension, asm: VALYR.Modules}
+      data:
+        ModuleId: Suspension.Raycast
+        IsEnabled: 1
+        FrontAxle:
+          RestLength: 0.35
+          MaxTravel: 0.22
+          SpringStiffness: 24000
+          DamperCompressionRate: 2200
+          DamperReboundRate: 3400
+          BumpStopThresholdRatio: 0.8
+          BumpStopStiffness: 140000
+        RearAxle:
+          RestLength: 0.35
+          MaxTravel: 0.22
+          SpringStiffness: 19000
+          DamperCompressionRate: 1800
+          DamperReboundRate: 2800
+          BumpStopThresholdRatio: 0.8
+          BumpStopStiffness: 140000
+        SurfaceLayers:
+          serializedVersion: 2
+          m_Bits: 4294967283
+    - rid: 6796886620113993823
+      type: {class: DirectSteeringModule, ns: VALYR.Modules.Steering, asm: VALYR.Modules}
+      data:
+        ModuleId: Steering.Direct
+        IsEnabled: 1
+        MaxSteerAngleDeg: 36
+        EnableSpeedSensitivity: 1
+        MinSteerAngleAtHighSpeedDeg: 12
+        HighSpeedThreshold: 40
+        SteeringResponseRate: 16
+        UseAckermann: 1
+    - rid: 6796886620113993824
+      type: {class: ArcadeEngineModule, ns: VALYR.Modules.Powertrain, asm: VALYR.Modules}
+      data:
+        ModuleId: Powertrain.Engine
+        IsEnabled: 1
+        IdleRpm: 750
+        RevLimiterRpm: 6500
+        MaxRpm: 6800
+        StallRpm: 2300
+        MaxTorque: 155
+        EngineBrakingTorque: 35
+        FlywheelInertia: 0.16
+        TorqueConverterMultiplication: 1.85
+        TorqueCurve:
+          serializedVersion: 2
+          m_Curve:
+          - serializedVersion: 3
+            time: 0
+            value: 0.65
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          - serializedVersion: 3
+            time: 0.25
+            value: 0.85
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          - serializedVersion: 3
+            time: 0.65
+            value: 1
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          - serializedVersion: 3
+            time: 0.9
+            value: 0.92
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          - serializedVersion: 3
+            time: 1
+            value: 0.78
+            inSlope: 0
+            outSlope: 0
+            tangentMode: 0
+            weightedMode: 0
+            inWeight: 0
+            outWeight: 0
+          m_PreInfinity: 2
+          m_PostInfinity: 2
+          m_RotationOrder: 4
+    - rid: 6796886620113993825
+      type: {class: SimpleTransmissionModule, ns: VALYR.Modules.Powertrain, asm: VALYR.Modules}
+      data:
+        ModuleId: Powertrain.Transmission
+        IsEnabled: 1
+        Drivetrain: 2
+        FrontTorqueSplitAwd: 0.5
+        ReverseGearRatio: -3.487
+        ForwardGearRatios:
+        - 3.612
+        - 2.085
+        - 1.37
+        - 1.039
+        - 0.778
+        - 0.633
+        FinalDriveRatio: 3.943
+        TransmissionEfficiency: 0.9
+        AutomaticShift: 1
+        ShiftUpRpm: 5800
+        ShiftDownRpm: 1900
+        ShiftDuration: 0.25
+        MaxBrakeTorque: 1800
+        FrontBrakeBias: 0.72
+        MaxHandbrakeTorque: 2400
+    - rid: 6796886620113993826
+      type: {class: BrushTireModule, ns: VALYR.Modules.Tires, asm: VALYR.Modules}
+      data:
+        ModuleId: Tires.Brush
+        IsEnabled: 1
+        FrontTires:
+          LongitudinalStiffness: 22000
+          LateralStiffness: 18000
+          FrictionCoefficientX: 1
+          FrictionCoefficientY: 0.95
+          LowSpeedThreshold: 0.5
+        RearTires:
+          LongitudinalStiffness: 22000
+          LateralStiffness: 18000
+          FrictionCoefficientX: 1
+          FrictionCoefficientY: 0.95
+          LowSpeedThreshold: 0.5
+        WheelInertia: 1.1
+    - rid: 6796886620113993827
+      type: {class: AntiRollBarModule, ns: VALYR.Modules.Assists, asm: VALYR.Modules}
+      data:
+        ModuleId: Assists.AntiRollBar
+        IsEnabled: 1
+        FrontStiffness: 4500
+        RearStiffness: 2200
+    - rid: 6796886620113993828
+      type: {class: AbsModule, ns: VALYR.Modules.Assists, asm: VALYR.Modules}
+      data:
+        ModuleId: Assists.ABS
+        IsEnabled: 1
+        SlipThreshold: -0.18
+        MinSpeedThreshold: 2.5
+        PressureReleaseRatio: 0.35
+    - rid: 6796886620113993829
+      type: {class: TcsModule, ns: VALYR.Modules.Assists, asm: VALYR.Modules}
+      data:
+        ModuleId: Assists.TCS
+        IsEnabled: 1
+        SlipThreshold: 0.2
+        TorqueReductionRatio: 0.35

@@ -1,424 +1,462 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
 using UnityEditor;
 using UnityEngine;
 using VALYR.Core;
+using VALYR.Core.Modules;
 using VALYR.Runtime;
 
 namespace VALYR.Editor
 {
     /// <summary>
     /// Custom Inspector for VehicleController.
-    /// Provides a structured, designer-friendly workflow with category tabs,
-    /// quick vehicle presets, modular subsystem toggles, and live Play-Mode telemetry.
+    /// Provides categorized modular subsystem selection, Transform-based wheel mount setup,
+    /// and ScriptableObject preset management without AI-bloat or fake telemetry.
     /// </summary>
     [CustomEditor(typeof(VehicleController))]
     public class VehicleControllerEditor : UnityEditor.Editor
     {
-        private static int _selectedTab = 0;
-        private static readonly string[] TabNames = new string[]
-        {
-            "Chassis",
-            "Suspension",
-            "Steering",
-            "Powertrain",
-            "Tires",
-            "Assists",
-            "Telemetry"
-        };
-
-        // Serialized Properties
-        private SerializedProperty _chassisConfigProp;
+        private SerializedProperty _presetProp;
+        private SerializedProperty _wheelMountsProp;
+        private SerializedProperty _wheelRadiusProp;
+        private SerializedProperty _chassisMassProp;
+        private SerializedProperty _centerOfMassProp;
         private SerializedProperty _groundLayersProp;
-
-        private SerializedProperty _enableSuspensionProp;
-        private SerializedProperty _enableSteeringProp;
-        private SerializedProperty _enablePowertrainProp;
-        private SerializedProperty _enableAntiRollBarProp;
-        private SerializedProperty _enableAbsProp;
-        private SerializedProperty _enableTcsProp;
+        private SerializedProperty _visualViewProp;
 
         private SerializedProperty _suspensionProp;
         private SerializedProperty _steeringProp;
         private SerializedProperty _engineProp;
         private SerializedProperty _transmissionProp;
-        private SerializedProperty _antiRollBarProp;
-        private SerializedProperty _absProp;
-        private SerializedProperty _tcsProp;
         private SerializedProperty _tiresProp;
-        private SerializedProperty _visualViewProp;
+        private SerializedProperty _assistsProp;
 
-        // Custom GUI styles
-        private GUIStyle _headerStyle;
-        private GUIStyle _subHeaderStyle;
-        private GUIStyle _cardBoxStyle;
-        private GUIStyle _greenTextStyle;
-        private GUIStyle _redTextStyle;
-        private GUIStyle _yellowTextStyle;
+        // Foldout toggles
+        private static bool _chassisFoldout = true;
+        private static bool _suspensionFoldout = true;
+        private static bool _steeringFoldout = true;
+        private static bool _powertrainFoldout = true;
+        private static bool _tiresFoldout = true;
+        private static bool _assistsFoldout = true;
+
+        private static readonly Dictionary<Type, List<Type>> _typeCache = new();
 
         private void OnEnable()
         {
-            _chassisConfigProp = serializedObject.FindProperty("ChassisConfig");
+            _presetProp = serializedObject.FindProperty("Preset");
+            _wheelMountsProp = serializedObject.FindProperty("WheelMounts");
+            _wheelRadiusProp = serializedObject.FindProperty("WheelRadius");
+            _chassisMassProp = serializedObject.FindProperty("ChassisMass");
+            _centerOfMassProp = serializedObject.FindProperty("CenterOfMass");
             _groundLayersProp = serializedObject.FindProperty("GroundLayers");
-
-            _enableSuspensionProp = serializedObject.FindProperty("EnableSuspension");
-            _enableSteeringProp = serializedObject.FindProperty("EnableSteering");
-            _enablePowertrainProp = serializedObject.FindProperty("EnablePowertrain");
-            _enableAntiRollBarProp = serializedObject.FindProperty("EnableAntiRollBar");
-            _enableAbsProp = serializedObject.FindProperty("EnableABS");
-            _enableTcsProp = serializedObject.FindProperty("EnableTCS");
+            _visualViewProp = serializedObject.FindProperty("_visualView");
 
             _suspensionProp = serializedObject.FindProperty("Suspension");
             _steeringProp = serializedObject.FindProperty("Steering");
             _engineProp = serializedObject.FindProperty("Engine");
             _transmissionProp = serializedObject.FindProperty("Transmission");
-            _antiRollBarProp = serializedObject.FindProperty("AntiRollBar");
-            _absProp = serializedObject.FindProperty("Abs");
-            _tcsProp = serializedObject.FindProperty("Tcs");
             _tiresProp = serializedObject.FindProperty("Tires");
-            _visualViewProp = serializedObject.FindProperty("_visualView");
+            _assistsProp = serializedObject.FindProperty("Assists");
         }
 
         public override void OnInspectorGUI()
         {
-            InitStyles();
             serializedObject.Update();
-
             var controller = (VehicleController)target;
 
-            // 1. Header Banner
-            DrawHeaderBanner();
-
-            // 2. Preset Quick-Bar
-            DrawPresetsBar(controller);
-
-            // 3. Subsystem Activation Matrix
-            DrawSubsystemsMatrix(controller);
-
+            // 1. ScriptableObject Preset Section
+            DrawPresetSection(controller);
             EditorGUILayout.Space(6);
 
-            // 4. Tab Navigation Toolbar
-            _selectedTab = GUILayout.Toolbar(_selectedTab, TabNames, GUILayout.Height(26));
-            EditorGUILayout.Space(8);
+            // 2. Chassis & Wheel Mount Transforms
+            DrawChassisSection(controller);
+            EditorGUILayout.Space(6);
 
-            // 5. Tab Content
-            switch (_selectedTab)
-            {
-                case 0: // Chassis
-                    DrawChassisTab(controller);
-                    break;
-                case 1: // Suspension
-                    DrawSuspensionTab();
-                    break;
-                case 2: // Steering
-                    DrawSteeringTab();
-                    break;
-                case 3: // Powertrain
-                    DrawPowertrainTab();
-                    break;
-                case 4: // Tires
-                    DrawTiresTab();
-                    break;
-                case 5: // Assists
-                    DrawAssistsTab();
-                    break;
-                case 6: // Telemetry
-                    DrawTelemetryTab(controller);
-                    break;
-            }
+            // 3. Categorized Subsystem Modules
+            EditorGUILayout.LabelField("Modular Subsystems", EditorStyles.boldLabel);
+
+            DrawModuleCategory<ISuspensionModule>("Suspension Subsystem", _suspensionProp, ref _suspensionFoldout);
+            EditorGUILayout.Space(4);
+
+            DrawModuleCategory<ISteeringModule>("Steering Subsystem", _steeringProp, ref _steeringFoldout);
+            EditorGUILayout.Space(4);
+
+            DrawPowertrainCategory();
+            EditorGUILayout.Space(4);
+
+            DrawModuleCategory<ITireModule>("Tire Dynamics Subsystem", _tiresProp, ref _tiresFoldout);
+            EditorGUILayout.Space(4);
+
+            DrawAssistsCategory(controller);
 
             serializedObject.ApplyModifiedProperties();
-
-            // Auto-repaint during Play Mode if on Telemetry tab
-            if (Application.isPlaying && _selectedTab == 6)
-            {
-                Repaint();
-            }
         }
 
-        private void DrawHeaderBanner()
+        private void DrawPresetSection(VehicleController controller)
         {
-            EditorGUILayout.BeginVertical(_cardBoxStyle);
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
             {
+                EditorGUILayout.LabelField("Vehicle Preset (ScriptableObject)", EditorStyles.boldLabel);
+                EditorGUILayout.PropertyField(_presetProp, new GUIContent("Active Preset Asset"));
+
                 EditorGUILayout.BeginHorizontal();
                 {
-                    EditorGUILayout.LabelField("VALYR VEHICLE CONTROLLER", _headerStyle);
-                    GUILayout.FlexibleSpace();
-                    string modeText = Application.isPlaying ? "[PLAYING]" : "[EDIT MODE]";
-                    GUIStyle modeStyle = Application.isPlaying ? _greenTextStyle : _yellowTextStyle;
-                    EditorGUILayout.LabelField(modeText, modeStyle, GUILayout.Width(80));
-                }
-                EditorGUILayout.EndHorizontal();
-
-                EditorGUILayout.LabelField("Deterministic Modular Vehicle Dynamics Pipeline", EditorStyles.miniLabel);
-            }
-            EditorGUILayout.EndVertical();
-            EditorGUILayout.Space(4);
-        }
-
-        private void DrawPresetsBar(VehicleController controller)
-        {
-            EditorGUILayout.BeginVertical(_cardBoxStyle);
-            {
-                EditorGUILayout.LabelField("Quick Vehicle Presets", _subHeaderStyle);
-                EditorGUILayout.BeginHorizontal();
-                {
-                    if (GUILayout.Button("Sedan (Solaris/Logan)", GUILayout.Height(24)))
+                    GUI.enabled = controller.Preset != null;
+                    if (GUILayout.Button("Apply Preset to Vehicle"))
                     {
-                        if (EditorUtility.DisplayDialog("Apply Sedan Preset?",
-                            "This will overwrite vehicle parameters with baseline Civilian Sedan settings (FWD 1.6L 6AT). Continue?",
+                        if (EditorUtility.DisplayDialog("Apply Preset?",
+                            $"Overwrite vehicle parameters and modules with '{controller.Preset.name}' settings?",
                             "Apply", "Cancel"))
                         {
-                            Undo.RecordObject(controller, "Apply Sedan Preset");
-                            controller.ApplyCivilianSedanPreset();
+                            Undo.RecordObject(controller, "Apply Vehicle Preset");
+                            controller.Preset.ApplyTo(controller);
                             EditorUtility.SetDirty(controller);
+                            serializedObject.Update();
                         }
                     }
 
-                    if (GUILayout.Button("Sport Coupe (RWD V8)", GUILayout.Height(24)))
+                    if (GUILayout.Button("Save Vehicle to Preset"))
                     {
-                        if (EditorUtility.DisplayDialog("Apply Sport Coupe Preset?",
-                            "This will overwrite vehicle parameters with Sport Coupe settings (RWD 4.0L V8). Continue?",
-                            "Apply", "Cancel"))
+                        if (EditorUtility.DisplayDialog("Save to Preset?",
+                            $"Save current vehicle settings into '{controller.Preset.name}' asset?",
+                            "Save", "Cancel"))
                         {
-                            Undo.RecordObject(controller, "Apply Sport Coupe Preset");
-                            controller.ApplySportCoupePreset();
-                            EditorUtility.SetDirty(controller);
+                            Undo.RecordObject(controller.Preset, "Save to Vehicle Preset");
+                            controller.Preset.CaptureFrom(controller);
+                            EditorUtility.SetDirty(controller.Preset);
+                            AssetDatabase.SaveAssets();
                         }
                     }
+                    GUI.enabled = true;
 
-                    if (GUILayout.Button("Off-Road SUV (AWD 4x4)", GUILayout.Height(24)))
+                    if (GUILayout.Button("Create New Asset..."))
                     {
-                        if (EditorUtility.DisplayDialog("Apply Off-Road Preset?",
-                            "This will overwrite vehicle parameters with Off-Road SUV settings (AWD 4x4). Continue?",
-                            "Apply", "Cancel"))
+                        string path = EditorUtility.SaveFilePanelInProject("Create Vehicle Preset", "NewVehiclePreset", "asset", "Save preset asset");
+                        if (!string.IsNullOrEmpty(path))
                         {
-                            Undo.RecordObject(controller, "Apply Off-Road Preset");
-                            controller.ApplyOffroadPreset();
+                            var newPreset = CreateInstance<VehiclePreset>();
+                            newPreset.CaptureFrom(controller);
+                            AssetDatabase.CreateAsset(newPreset, path);
+                            AssetDatabase.SaveAssets();
+
+                            Undo.RecordObject(controller, "Assign New Preset");
+                            controller.Preset = newPreset;
                             EditorUtility.SetDirty(controller);
+                            serializedObject.Update();
                         }
                     }
                 }
                 EditorGUILayout.EndHorizontal();
             }
             EditorGUILayout.EndVertical();
-            EditorGUILayout.Space(4);
         }
 
-        private void DrawSubsystemsMatrix(VehicleController controller)
+        private void DrawChassisSection(VehicleController controller)
         {
-            EditorGUILayout.BeginVertical(_cardBoxStyle);
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
             {
-                EditorGUILayout.LabelField("Active Subsystems & Modules", _subHeaderStyle);
-
-                EditorGUI.BeginChangeCheck();
-                EditorGUILayout.BeginHorizontal();
+                _chassisFoldout = EditorGUILayout.Foldout(_chassisFoldout, "Chassis & Wheel Mounts", true, EditorStyles.foldoutHeader);
+                if (_chassisFoldout)
                 {
-                    EditorGUILayout.PropertyField(_enableSuspensionProp, new GUIContent("Suspension"));
-                    EditorGUILayout.PropertyField(_enableSteeringProp, new GUIContent("Steering"));
-                    EditorGUILayout.PropertyField(_enablePowertrainProp, new GUIContent("Powertrain"));
-                }
-                EditorGUILayout.EndHorizontal();
+                    EditorGUI.indentLevel++;
+                    EditorGUILayout.LabelField("Wheel Mounts (Drag transforms from hierarchy):", EditorStyles.miniLabel);
 
-                EditorGUILayout.BeginHorizontal();
-                {
-                    EditorGUILayout.PropertyField(_enableAntiRollBarProp, new GUIContent("Anti-Roll"));
-                    EditorGUILayout.PropertyField(_enableAbsProp, new GUIContent("ABS"));
-                    EditorGUILayout.PropertyField(_enableTcsProp, new GUIContent("TCS"));
-                }
-                EditorGUILayout.EndHorizontal();
+                    SerializedProperty flProp = _wheelMountsProp.FindPropertyRelative("FrontLeft");
+                    SerializedProperty frProp = _wheelMountsProp.FindPropertyRelative("FrontRight");
+                    SerializedProperty rlProp = _wheelMountsProp.FindPropertyRelative("RearLeft");
+                    SerializedProperty rrProp = _wheelMountsProp.FindPropertyRelative("RearRight");
 
-                if (EditorGUI.EndChangeCheck())
-                {
-                    serializedObject.ApplyModifiedProperties();
-                    controller.SyncModuleEnableStates();
-                }
-            }
-            EditorGUILayout.EndVertical();
-        }
+                    EditorGUILayout.PropertyField(flProp, new GUIContent("Front-Left Anchor"));
+                    EditorGUILayout.PropertyField(frProp, new GUIContent("Front-Right Anchor"));
+                    EditorGUILayout.PropertyField(rlProp, new GUIContent("Rear-Left Anchor"));
+                    EditorGUILayout.PropertyField(rrProp, new GUIContent("Rear-Right Anchor"));
 
-        private void DrawChassisTab(VehicleController controller)
-        {
-            EditorGUILayout.BeginVertical(_cardBoxStyle);
-            {
-                EditorGUILayout.LabelField("Chassis Geometry & Weight", _subHeaderStyle);
-                EditorGUILayout.PropertyField(_chassisConfigProp, true);
-                EditorGUILayout.Space(6);
-                EditorGUILayout.PropertyField(_groundLayersProp);
-                EditorGUILayout.Space(6);
-                EditorGUILayout.PropertyField(_visualViewProp);
+                    if (GUILayout.Button("Auto-Find Anchors in Hierarchy", EditorStyles.miniButton))
+                    {
+                        Undo.RecordObject(controller, "Auto-Find Wheel Mounts");
+                        controller.AutoFindWheelMounts();
+                        controller.UpdateChassisGeometry();
+                        EditorUtility.SetDirty(controller);
+                        serializedObject.Update();
+                    }
 
-                if (controller.Rigidbody != null)
-                {
                     EditorGUILayout.Space(4);
-                    EditorGUILayout.HelpBox($"Rigidbody Mass: {controller.Rigidbody.mass:F0} kg | Center of Mass: {controller.Rigidbody.centerOfMass}", MessageType.Info);
+                    EditorGUILayout.PropertyField(_wheelRadiusProp, new GUIContent("Wheel Radius (m)"));
+                    EditorGUILayout.PropertyField(_chassisMassProp, new GUIContent("Chassis Mass (kg)"));
+                    EditorGUILayout.PropertyField(_centerOfMassProp, new GUIContent("Center Of Mass"));
+                    EditorGUILayout.PropertyField(_groundLayersProp, new GUIContent("Ground Layers"));
+                    EditorGUILayout.PropertyField(_visualViewProp, new GUIContent("Visual View"));
+
+                    if (controller.Rigidbody != null)
+                    {
+                        EditorGUILayout.HelpBox($"Calculated Wheel Offsets: FL({controller.ChassisConfig.WheelOffsets[0]:F2}), FR({controller.ChassisConfig.WheelOffsets[1]:F2}), RL({controller.ChassisConfig.WheelOffsets[2]:F2}), RR({controller.ChassisConfig.WheelOffsets[3]:F2})", MessageType.None);
+                    }
+
+                    EditorGUI.indentLevel--;
                 }
             }
             EditorGUILayout.EndVertical();
         }
 
-        private void DrawSuspensionTab()
+        private void DrawModuleCategory<TInterface>(string categoryName, SerializedProperty property, ref bool foldout) where TInterface : class
         {
-            EditorGUILayout.BeginVertical(_cardBoxStyle);
+            List<Type> types = GetImplementations(typeof(TInterface));
+
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
             {
-                EditorGUILayout.LabelField("Raycast Suspension Subsystem", _subHeaderStyle);
-                EditorGUILayout.PropertyField(_suspensionProp, true);
-            }
-            EditorGUILayout.EndVertical();
-        }
-
-        private void DrawSteeringTab()
-        {
-            EditorGUILayout.BeginVertical(_cardBoxStyle);
-            {
-                EditorGUILayout.LabelField("Steering Kinematics Subsystem", _subHeaderStyle);
-                EditorGUILayout.PropertyField(_steeringProp, true);
-            }
-            EditorGUILayout.EndVertical();
-        }
-
-        private void DrawPowertrainTab()
-        {
-            EditorGUILayout.BeginVertical(_cardBoxStyle);
-            {
-                EditorGUILayout.LabelField("Engine Subsystem", _subHeaderStyle);
-                EditorGUILayout.PropertyField(_engineProp, true);
-                EditorGUILayout.Space(8);
-                EditorGUILayout.LabelField("Transmission & Brakes Subsystem", _subHeaderStyle);
-                EditorGUILayout.PropertyField(_transmissionProp, true);
-            }
-            EditorGUILayout.EndVertical();
-        }
-
-        private void DrawTiresTab()
-        {
-            EditorGUILayout.BeginVertical(_cardBoxStyle);
-            {
-                EditorGUILayout.LabelField("Brush Tire Model Subsystem", _subHeaderStyle);
-                EditorGUILayout.PropertyField(_tiresProp, true);
-            }
-            EditorGUILayout.EndVertical();
-        }
-
-        private void DrawAssistsTab()
-        {
-            EditorGUILayout.BeginVertical(_cardBoxStyle);
-            {
-                EditorGUILayout.LabelField("Anti-Roll Bar Chassis Assist", _subHeaderStyle);
-                EditorGUILayout.PropertyField(_antiRollBarProp, true);
-                EditorGUILayout.Space(8);
-                EditorGUILayout.LabelField("Anti-Lock Braking System (ABS)", _subHeaderStyle);
-                EditorGUILayout.PropertyField(_absProp, true);
-                EditorGUILayout.Space(8);
-                EditorGUILayout.LabelField("Traction Control System (TCS)", _subHeaderStyle);
-                EditorGUILayout.PropertyField(_tcsProp, true);
-            }
-            EditorGUILayout.EndVertical();
-        }
-
-        private void DrawTelemetryTab(VehicleController controller)
-        {
-            EditorGUILayout.BeginVertical(_cardBoxStyle);
-            {
-                EditorGUILayout.LabelField("Real-Time Vehicle Telemetry", _subHeaderStyle);
-
-                if (!Application.isPlaying)
-                {
-                    EditorGUILayout.HelpBox("Live Telemetry is available while Unity is in Play Mode. Press Play to inspect real-time physics data.", MessageType.Info);
-                    EditorGUILayout.EndVertical();
-                    return;
-                }
-
-                VehicleState state = controller.State;
-                VehicleInput input = controller.Input;
-                Rigidbody rb = controller.Rigidbody;
-
-                float speedMs = rb != null ? rb.linearVelocity.magnitude : 0f;
-                float speedKmh = speedMs * 3.6f;
-                string gearText = state.CurrentGear == -1 ? "R" : (state.CurrentGear == 0 ? "N" : state.CurrentGear.ToString());
-
-                // Overview metrics
                 EditorGUILayout.BeginHorizontal();
+                foldout = EditorGUILayout.Foldout(foldout, categoryName, true, EditorStyles.foldoutHeader);
+
+                string currentTypeName = property.managedReferenceValue != null
+                    ? property.managedReferenceValue.GetType().Name
+                    : "None";
+
+                int currentIndex = 0;
+                for (int i = 0; i < types.Count; i++)
                 {
-                    EditorGUILayout.LabelField($"Speed: {speedKmh:F1} km/h ({speedMs:F1} m/s)", EditorStyles.boldLabel);
-                    EditorGUILayout.LabelField($"RPM: {state.EngineRpm:F0} RPM", EditorStyles.boldLabel);
-                    EditorGUILayout.LabelField($"Gear: {gearText} (Clutch: {state.ClutchEngagement * 100f:F0}%)", EditorStyles.boldLabel);
+                    if (types[i].Name == currentTypeName)
+                    {
+                        currentIndex = i + 1;
+                        break;
+                    }
+                }
+
+                string[] displayNames = new string[types.Count + 1];
+                displayNames[0] = "None (Disabled)";
+                for (int i = 0; i < types.Count; i++)
+                {
+                    displayNames[i + 1] = ObjectNames.NicifyVariableName(types[i].Name);
+                }
+
+                int newIndex = EditorGUILayout.Popup(currentIndex, displayNames, GUILayout.Width(180));
+                if (newIndex != currentIndex)
+                {
+                    Undo.RecordObject(target, $"Change {categoryName}");
+                    if (newIndex == 0)
+                    {
+                        property.managedReferenceValue = null;
+                    }
+                    else
+                    {
+                        property.managedReferenceValue = Activator.CreateInstance(types[newIndex - 1]);
+                    }
+                    serializedObject.ApplyModifiedProperties();
                 }
                 EditorGUILayout.EndHorizontal();
 
-                // Driver Inputs
-                EditorGUILayout.Space(4);
-                EditorGUILayout.LabelField($"Inputs: Throttle: {input.Throttle * 100f:F0}% | Brake: {input.Brake * 100f:F0}% | Steer: {input.Steer * 100f:+0;-0;0}% | E-Brake: {(input.Handbrake > 0.5f ? "ON" : "OFF")}");
-
-                EditorGUILayout.Space(8);
-                EditorGUILayout.LabelField("4-Wheel Dynamics & Contact Patch", EditorStyles.boldLabel);
-
-                string[] wheelTitles = { "Front-Left (FL)", "Front-Right (FR)", "Rear-Left (RL)", "Rear-Right (RR)" };
-
-                for (int i = 0; i < 4; i++)
+                if (foldout && property.managedReferenceValue != null)
                 {
-                    WheelState ws = state.Wheels[i];
-                    float radius = controller.ChassisConfig.WheelRadii[i];
-                    float linearSpeed = ws.AngularVelocity * radius;
-
-                    EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-                    {
-                        EditorGUILayout.BeginHorizontal();
-                        {
-                            EditorGUILayout.LabelField($"<b>{wheelTitles[i]}</b>", _subHeaderStyle);
-                            string contactText = ws.HasContact ? "[GROUNDED]" : "[AIRBORNE]";
-                            GUIStyle cStyle = ws.HasContact ? _greenTextStyle : _redTextStyle;
-                            EditorGUILayout.LabelField(contactText, cStyle, GUILayout.Width(90));
-                        }
-                        EditorGUILayout.EndHorizontal();
-
-                        float compCm = ws.SuspensionCompression * 100f;
-                        EditorGUILayout.LabelField($"Travel: {compCm:F1} cm | Damper: {ws.SuspensionVelocity:+0.00;-0.00;0.00} m/s | Load: {ws.NormalLoad:F0} N");
-                        EditorGUILayout.LabelField($"Steer: {ws.SteerAngle * Mathf.Rad2Deg:+0.0;-0.0;0.0}° | Speed: {linearSpeed * 3.6f:F1} km/h | Omega: {ws.AngularVelocity:F1} rad/s");
-
-                        Vector3 carForward = controller.transform.forward;
-                        Vector3 carUp = controller.transform.up;
-                        Vector3 wheelForward = Quaternion.AngleAxis(ws.SteerAngle * Mathf.Rad2Deg, carUp) * carForward;
-                        Vector3 wheelRight = Vector3.Cross(carUp, wheelForward);
-                        float fx = Vector3.Dot(ws.TireForce, wheelForward);
-                        float fy = Vector3.Dot(ws.TireForce, wheelRight);
-
-                        EditorGUILayout.LabelField($"Slip: Sx = {ws.SlipRatio:+0.00;-0.00;0.00} | Sy = {ws.SlipAngle * Mathf.Rad2Deg:+0.0;-0.0;0.0}° | Skid: {ws.SkidIntensity * 100f:F0}%");
-                        EditorGUILayout.LabelField($"Forces: Fx (Long) = {fx:+0;-0;0} N | Fy (Lat) = {fy:+0;-0;0} N");
-                    }
-                    EditorGUILayout.EndVertical();
+                    EditorGUI.indentLevel++;
+                    EditorGUILayout.Space(2);
+                    DrawChildrenProperties(property);
+                    EditorGUI.indentLevel--;
                 }
             }
             EditorGUILayout.EndVertical();
         }
 
-        private void InitStyles()
+        private void DrawPowertrainCategory()
         {
-            if (_headerStyle != null)
-                return;
-
-            _headerStyle = new GUIStyle(EditorStyles.boldLabel)
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
             {
-                fontSize = 13
-            };
-            _headerStyle.normal.textColor = new Color(0.2f, 0.75f, 1.0f);
+                _powertrainFoldout = EditorGUILayout.Foldout(_powertrainFoldout, "Powertrain Subsystem", true, EditorStyles.foldoutHeader);
+                if (_powertrainFoldout)
+                {
+                    EditorGUI.indentLevel++;
 
-            _subHeaderStyle = new GUIStyle(EditorStyles.boldLabel)
+                    // Engine Slot
+                    DrawSubModuleSlot<IEngineModule>("Engine Module", _engineProp);
+                    EditorGUILayout.Space(4);
+
+                    // Transmission Slot
+                    DrawSubModuleSlot<ITransmissionModule>("Transmission Module", _transmissionProp);
+
+                    EditorGUI.indentLevel--;
+                }
+            }
+            EditorGUILayout.EndVertical();
+        }
+
+        private void DrawSubModuleSlot<TInterface>(string slotLabel, SerializedProperty property) where TInterface : class
+        {
+            List<Type> types = GetImplementations(typeof(TInterface));
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField(slotLabel, EditorStyles.boldLabel, GUILayout.Width(150));
+
+            string currentTypeName = property.managedReferenceValue != null
+                ? property.managedReferenceValue.GetType().Name
+                : "None";
+
+            int currentIndex = 0;
+            for (int i = 0; i < types.Count; i++)
             {
-                fontSize = 11
-            };
+                if (types[i].Name == currentTypeName)
+                {
+                    currentIndex = i + 1;
+                    break;
+                }
+            }
 
-            _cardBoxStyle = new GUIStyle(EditorStyles.helpBox)
+            string[] displayNames = new string[types.Count + 1];
+            displayNames[0] = "None (Disabled)";
+            for (int i = 0; i < types.Count; i++)
             {
-                padding = new RectOffset(10, 10, 8, 8)
-            };
+                displayNames[i + 1] = ObjectNames.NicifyVariableName(types[i].Name);
+            }
 
-            _greenTextStyle = new GUIStyle(EditorStyles.boldLabel);
-            _greenTextStyle.normal.textColor = new Color(0.25f, 0.85f, 0.35f);
+            int newIndex = EditorGUILayout.Popup(currentIndex, displayNames);
+            if (newIndex != currentIndex)
+            {
+                Undo.RecordObject(target, $"Change {slotLabel}");
+                if (newIndex == 0)
+                {
+                    property.managedReferenceValue = null;
+                }
+                else
+                {
+                    property.managedReferenceValue = Activator.CreateInstance(types[newIndex - 1]);
+                }
+                serializedObject.ApplyModifiedProperties();
+            }
+            EditorGUILayout.EndHorizontal();
 
-            _redTextStyle = new GUIStyle(EditorStyles.boldLabel);
-            _redTextStyle.normal.textColor = new Color(0.95f, 0.3f, 0.3f);
+            if (property.managedReferenceValue != null)
+            {
+                EditorGUI.indentLevel++;
+                DrawChildrenProperties(property);
+                EditorGUI.indentLevel--;
+            }
+        }
 
-            _yellowTextStyle = new GUIStyle(EditorStyles.boldLabel);
-            _yellowTextStyle.normal.textColor = new Color(0.95f, 0.75f, 0.2f);
+        private void DrawAssistsCategory(VehicleController controller)
+        {
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            {
+                EditorGUILayout.BeginHorizontal();
+                _assistsFoldout = EditorGUILayout.Foldout(_assistsFoldout, "Driver Assists & Chassis Extensions", true, EditorStyles.foldoutHeader);
+
+                if (GUILayout.Button("+ Add Assist", EditorStyles.miniButton, GUILayout.Width(100)))
+                {
+                    GenericMenu menu = new GenericMenu();
+                    List<Type> assistTypes = GetImplementations(typeof(VehicleModule));
+                    // Filter out core modules that already have dedicated slots
+                    foreach (var type in assistTypes)
+                    {
+                        if (typeof(ISuspensionModule).IsAssignableFrom(type) ||
+                            typeof(ISteeringModule).IsAssignableFrom(type) ||
+                            typeof(IEngineModule).IsAssignableFrom(type) ||
+                            typeof(ITransmissionModule).IsAssignableFrom(type) ||
+                            typeof(ITireModule).IsAssignableFrom(type))
+                        {
+                            continue;
+                        }
+
+                        menu.AddItem(new GUIContent(ObjectNames.NicifyVariableName(type.Name)), false, () =>
+                        {
+                            Undo.RecordObject(controller, "Add Assist Module");
+                            controller.Assists.Add((VehicleModule)Activator.CreateInstance(type));
+                            EditorUtility.SetDirty(controller);
+                            serializedObject.Update();
+                        });
+                    }
+                    menu.ShowAsContext();
+                }
+                EditorGUILayout.EndHorizontal();
+
+                if (_assistsFoldout)
+                {
+                    EditorGUI.indentLevel++;
+                    if (controller.Assists == null || controller.Assists.Count == 0)
+                    {
+                        EditorGUILayout.LabelField("No assist modules attached.", EditorStyles.miniLabel);
+                    }
+                    else
+                    {
+                        for (int i = 0; i < controller.Assists.Count; i++)
+                        {
+                            var assist = controller.Assists[i];
+                            if (assist == null) continue;
+
+                            EditorGUILayout.BeginVertical(GUI.skin.box);
+                            EditorGUILayout.BeginHorizontal();
+                            EditorGUILayout.LabelField(ObjectNames.NicifyVariableName(assist.GetType().Name), EditorStyles.boldLabel);
+
+                            if (GUILayout.Button("X", GUILayout.Width(22), GUILayout.Height(18)))
+                            {
+                                Undo.RecordObject(controller, "Remove Assist Module");
+                                controller.Assists.RemoveAt(i);
+                                EditorUtility.SetDirty(controller);
+                                serializedObject.Update();
+                                GUIUtility.ExitGUI();
+                                break;
+                            }
+                            EditorGUILayout.EndHorizontal();
+
+                            if (i < _assistsProp.arraySize)
+                            {
+                                SerializedProperty itemProp = _assistsProp.GetArrayElementAtIndex(i);
+                                DrawChildrenProperties(itemProp);
+                            }
+                            EditorGUILayout.EndVertical();
+                            EditorGUILayout.Space(2);
+                        }
+                    }
+                    EditorGUI.indentLevel--;
+                }
+            }
+            EditorGUILayout.EndVertical();
+        }
+
+        private static void DrawChildrenProperties(SerializedProperty parentProperty)
+        {
+            SerializedProperty iterator = parentProperty.Copy();
+            SerializedProperty endProperty = iterator.GetEndProperty();
+
+            bool enterChildren = true;
+            while (iterator.NextVisible(enterChildren))
+            {
+                if (SerializedProperty.EqualContents(iterator, endProperty))
+                    break;
+
+                enterChildren = false;
+
+                // Skip internal metadata
+                if (iterator.name == "ModuleId" || iterator.name == "IsEnabled")
+                    continue;
+
+                EditorGUILayout.PropertyField(iterator, true);
+            }
+        }
+
+        private static List<Type> GetImplementations(Type targetType)
+        {
+            if (_typeCache.TryGetValue(targetType, out var list))
+                return list;
+
+            list = new List<Type>();
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                string name = assembly.GetName().Name;
+                if (!name.StartsWith("VALYR") && !name.StartsWith("Assembly-CSharp"))
+                    continue;
+
+                try
+                {
+                    foreach (var type in assembly.GetTypes())
+                    {
+                        if (!type.IsAbstract && !type.IsInterface && targetType.IsAssignableFrom(type))
+                        {
+                            list.Add(type);
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            _typeCache[targetType] = list;
+            return list;
         }
     }
 }
