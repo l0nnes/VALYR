@@ -108,12 +108,12 @@ namespace VALYR.Multiplayer
             var rb = ctx.rigidbody;
             if (rb == null) return;
 
-            // When proxy vehicle is Kinematic, drive it smoothly with MovePosition
-            // Eliminates spring-force fighting against PhysX colliders and prevents jitter/penetration
+            // When proxy vehicle is Kinematic, drive it directly to the predicted target position with MovePosition.
+            // ctx.targetPosition is already Hermite-interpolated and predicted by PurrNet NetworkRigidbody.
+            // Avoiding secondary lerping eliminates steady-state lag and keeps proxy at real predicted position.
             if (rb.isKinematic)
             {
-                float lerpFactor = 1f - Mathf.Exp(-25f * Time.fixedDeltaTime);
-                rb.MovePosition(Vector3.Lerp(rb.position, ctx.targetPosition, lerpFactor));
+                rb.MovePosition(ctx.targetPosition);
                 return;
             }
 
@@ -125,11 +125,10 @@ namespace VALYR.Multiplayer
             var rb = ctx.rigidbody;
             if (rb == null) return;
 
-            // When proxy vehicle is Kinematic, drive it smoothly with MoveRotation
+            // When proxy vehicle is Kinematic, drive it directly to the predicted target rotation with MoveRotation.
             if (rb.isKinematic)
             {
-                float lerpFactor = 1f - Mathf.Exp(-25f * Time.fixedDeltaTime);
-                rb.MoveRotation(Quaternion.Slerp(rb.rotation, NormalizeQuaternion(ctx.targetRotation), lerpFactor));
+                rb.MoveRotation(NormalizeQuaternion(ctx.targetRotation));
                 return;
             }
 

@@ -33,7 +33,7 @@ namespace VALYR.Multiplayer
         [Header("PurrNet State Replication")]
         [Tooltip("Owner-authoritative synchronized driving and wheel visuals state.")]
         [SerializeField]
-        private SyncVar<VehicleNetworkState> _networkState = new(default, 0.033f, ownerAuth: true);
+        private SyncVar<VehicleNetworkState> _networkState = new(default, 0.02f, ownerAuth: true);
 
         // Cached vehicle components
         private VehicleController _controller;
@@ -56,9 +56,10 @@ namespace VALYR.Multiplayer
         private float _proxyWheelRoll2;
         private float _proxyWheelRoll3;
 
-        // Collision cooldown to prevent multiple impulse spam within a few frames
+        // Collision cooldown to prevent multiple impulse spam and double-hit ping-ponging
         private float _lastCollisionTime;
-        private const float CollisionCooldown = 0.15f;
+        private float _lastImpulseReceivedTime;
+        private const float CollisionCooldown = 0.25f;
 
         private static readonly FieldInfo CameraSlotsField =
             typeof(VehicleCameraController).GetField("_cameraSlots", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -351,7 +352,12 @@ namespace VALYR.Multiplayer
             if (!IsLocallyControlled || _rigidbody == null || _rigidbody.isKinematic)
                 return;
 
+            // Debounce collision events so we don't spam multiple impulses in quick succession
             if (Time.time - _lastCollisionTime < CollisionCooldown)
+                return;
+
+            // Prevent ping-pong double impulses if we were recently struck by another vehicle
+            if (Time.time - _lastImpulseReceivedTime < CollisionCooldown)
                 return;
 
             var otherNet = collision.collider.GetComponentInParent<NetworkVehicle>();
@@ -365,16 +371,37 @@ namespace VALYR.Multiplayer
             _lastCollisionTime = Time.time;
 
             ContactPoint contact = collision.GetContact(0);
-            // Normal points from other into this; negative normal points into other
-            Vector3 impulse = -contact.normal * (impactSpeed * _rigidbody.mass * 0.75f);
-            // Clamp excessive vertical launch forces
-            impulse.y = Mathf.Clamp(impulse.y, -impactSpeed * 300f, impactSpeed * 600f);
 
-            // 1. Send impact impulse over network to the owner of the other vehicle
-            otherNet.SendCollisionImpulse(impulse, contact.point);
+            // Calculate horizontal collision direction (XZ plane) to prevent launching into the air
+            Vector3 horizontalNormal = new Vector3(contact.normal.x, 0f, contact.normal.z);
+            if (horizontalNormal.sqrMagnitude > 0.001f)
+            {
+                horizontalNormal.Normalize();
+            }
+            else
+            {
+                // Fallback to relative velocity direction if contact normal is purely vertical
+                Vector3 relVelH = new Vector3(collision.relativeVelocity.x, 0f, collision.relativeVelocity.z);
+                horizontalNormal = relVelH.sqrMagnitude > 0.001f ? -relVelH.normalized : -transform.forward;
+            }
 
-            // 2. Debounce collision between the two vehicles briefly so they bounce apart cleanly
-            StartCoroutine(TemporaryIgnoreCollision(otherNet, 0.20f));
+            // Inelastic vehicle impact impulse: ~0.35 * mass * relative speed
+            // For 1750kg at 15 m/s (~54 km/h), this is ~9,180 N*s (approx 5.2 m/s delta-v),
+            // producing a firm, heavy truck impact without ragdoll launching.
+            float impulseMagnitude = impactSpeed * _rigidbody.mass * 0.35f;
+            Vector3 impulse = -horizontalNormal * impulseMagnitude;
+
+            // Zero vertical force entirely to keep wheels firmly grounded
+            impulse.y = 0f;
+
+            // Project application point to Center of Mass height to prevent pitch/roll flips while preserving realistic yaw spin
+            Vector3 appPoint = new Vector3(contact.point.x, _rigidbody.worldCenterOfMass.y, contact.point.z);
+            Vector3 toPoint = appPoint - _rigidbody.worldCenterOfMass;
+            toPoint = Vector3.ClampMagnitude(toPoint, 1.2f);
+            appPoint = _rigidbody.worldCenterOfMass + toPoint;
+
+            // Send impact impulse over network to the owner of the other vehicle
+            otherNet.SendCollisionImpulse(impulse, appPoint);
         }
 
         /// <summary>
@@ -397,40 +424,9 @@ namespace VALYR.Multiplayer
             // Only the dynamic owner executes the physical impact force
             if (IsLocallyControlled && _rigidbody != null && !_rigidbody.isKinematic)
             {
+                _lastImpulseReceivedTime = Time.time;
+                _lastCollisionTime = Time.time;
                 _rigidbody.AddForceAtPosition(impulse, point, ForceMode.Impulse);
-            }
-        }
-
-        private IEnumerator TemporaryIgnoreCollision(NetworkVehicle other, float duration)
-        {
-            if (other == null) yield break;
-
-            var myColliders = GetComponentsInChildren<Collider>();
-            var otherColliders = other.GetComponentsInChildren<Collider>();
-
-            for (int i = 0; i < myColliders.Length; i++)
-            {
-                if (myColliders[i] == null) continue;
-                for (int j = 0; j < otherColliders.Length; j++)
-                {
-                    if (otherColliders[j] == null) continue;
-                    Physics.IgnoreCollision(myColliders[i], otherColliders[j], true);
-                }
-            }
-
-            yield return new WaitForSeconds(duration);
-
-            if (other != null)
-            {
-                for (int i = 0; i < myColliders.Length; i++)
-                {
-                    if (myColliders[i] == null) continue;
-                    for (int j = 0; j < otherColliders.Length; j++)
-                    {
-                        if (otherColliders[j] == null) continue;
-                        Physics.IgnoreCollision(myColliders[i], otherColliders[j], false);
-                    }
-                }
             }
         }
 

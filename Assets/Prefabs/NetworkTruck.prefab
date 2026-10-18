@@ -3126,9 +3126,9 @@ MonoBehaviour:
   _syncParent: 1
   _syncVelocityRelativeToParent: 1
   _useParentFramePositionError: 0
-  _interpolationDelay: 0.05
+  _interpolationDelay: 0.02
   _autoInterpolationDelay: 1
-  _predictionFactor: 0
+  _predictionFactor: 1
   _maxExtrapolationDuration: 0.25
   _positionStrength: 5
   _correctionRange: 2
@@ -3179,6 +3179,10 @@ MonoBehaviour:
       SuspLength1: 0
       SuspLength2: 0
       SuspLength3: 0
+      WheelOmega0: 0
+      WheelOmega1: 0
+      WheelOmega2: 0
+      WheelOmega3: 0
       IsBraking: 0
       IsHandbraking: 0
       IsReversing: 0
@@ -3194,6 +3198,10 @@ MonoBehaviour:
       SuspLength1: 0
       SuspLength2: 0
       SuspLength3: 0
+      WheelOmega0: 0
+      WheelOmega1: 0
+      WheelOmega2: 0
+      WheelOmega3: 0
       IsBraking: 0
       IsHandbraking: 0
       IsReversing: 0
