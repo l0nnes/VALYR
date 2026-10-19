@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   release:
-    name: Release
+    name: Release & Distribute Packages
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -36,7 +36,27 @@ jobs:
       - name: Install release tooling
         run: npm install --no-audit --no-fund
 
-      - name: Release
+      - name: Release Packages
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run release
+
+      - name: Update UPM Distribution Branches
+        if: success()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # 1. Core UPM branch
+          echo "Splitting com.valyr.core subtree..."
+          git subtree split --prefix=Packages/com.valyr.core -b upm-core-branch
+          git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" upm-core-branch:upm/core --force
+          
+          # 2. Multiplayer UPM branch
+          echo "Splitting com.valyr.multiplayer subtree..."
+          git subtree split --prefix=Packages/com.valyr.multiplayer -b upm-multiplayer-branch
+          git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" upm-multiplayer-branch:upm/multiplayer --force
+          
+          echo "UPM distribution branches successfully updated."

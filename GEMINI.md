@@ -41,28 +41,29 @@ When creating or editing C# scripts for Unity, follow this strict sequence:
 4. **Zero Errors Guarantee**:
    - If any compilation errors or issues are detected, fix them in the code and repeat steps 2 and 3 (compile -> wait -> check) until 0 errors remain before reporting completion to the user.
 
-## 3. Branch Strategy & Core vs Addon Workflow
-The repository strictly adheres to a **single-repo, two-branch** architecture:
-- **`master`**: Core vehicle simulation framework only (Single-player physics, kinematics, telemetry, cameras, inputs, visuals, presets). Zero networking dependencies (no PurrNet, no PurrDiction).
-- **`feat/multiplayer-addon`**: Core + Multiplayer Addon (`VALYR.Multiplayer` assembly, PurrNet, PurrDiction prediction/rollback, kinematic proxy collisions, network entities and lobby).
+## 3. Monorepo & UPM Package Architecture
+The repository uses a **unified monorepo architecture** on `master` with decoupled Unity Package Manager (UPM) packages:
 
-### Rules for Switching & Editing Branches:
-1. **Core Development**:
-   - Any work on vehicle physics, wheel contact, suspension, powertrain, steering, assists, cameras, or core visuals **MUST be done on `master`**.
-   - Before editing Core, switch to `master` (`git checkout master`).
-   - After committing changes to `master`, push to origin (`git push origin master`).
+### Package Structure:
+- **`Packages/com.valyr.core`**:
+  - Core vehicle simulation framework: physics, kinematics, drivetrain, suspension, steering, assists, camera, input reader, telemetry, and editor inspectors.
+  - Zero networking dependencies (does not require PurrNet, PurrDiction, Steamworks, etc.).
+- **`Packages/com.valyr.multiplayer`**:
+  - Multiplayer replication, client-side prediction, and rollback addon.
+  - Depends only on `com.valyr.core`, `dev.purrnet.purrnet`, and `dev.purrnet.purrdiction`.
+  - Free from game-specific lobby or Steamworks dependencies.
+- **`Assets/`**:
+  - Contains test tracks, demo scenes (`SampleScene`, `MenuScene`), vehicle models, audio, and demo utilities (`Assets/Scripts/Demo`).
+  - Serves as the testbed and sandbox for development and CI validation.
 
-2. **Propagating Core Updates to Multiplayer Addon**:
-   - Whenever changes are made to `master`, sync them into `feat/multiplayer-addon` using **rebase**:
-     ```bash
-     git checkout feat/multiplayer-addon
-     git rebase master
-     git push origin feat/multiplayer-addon --force-with-lease
-     ```
-   - Never merge `master` into `feat/multiplayer-addon` with merge commits; always keep the multiplayer commits rebased on top of `master`.
-
-3. **Multiplayer Addon Development**:
-   - Any multiplayer-specific logic (network state replication, PurrDiction prediction, network prefabs/lobby, networked doors/lights/interior) **MUST be done on `feat/multiplayer-addon`**.
-   - Do NOT introduce multiplayer dependencies into `VALYR.Core`, `VALYR.Modules`, `VALYR.Runtime`, or `VALYR.Editor`.
-   - Never commit multiplayer-specific scripts, packages, or scene setups to `master`.
-
+### Development & Release Workflow:
+1. **Single Source of Truth (`master`)**:
+   - All development takes place on `master` (or short-lived feature PRs merged into `master`).
+   - Changes to Core APIs and Multiplayer networking can be updated and tested atomically in the same commit.
+   - No cross-branch rebasing or synchronization conflicts.
+2. **Automated CI/CD Distribution**:
+   - GitHub Actions validates package integrity, documentation, and headless compilation.
+   - Semantic Release generates SemVer tags and releases both UPM `.tgz` tarballs (`com.valyr.core-vX.Y.Z.tgz` and `com.valyr.multiplayer-vX.Y.Z.tgz`).
+   - Automatically maintains pure UPM distribution branches via subtree split:
+     - `https://github.com/l0nnes/VALYR.git#upm/core`
+     - `https://github.com/l0nnes/VALYR.git#upm/multiplayer`

@@ -42,12 +42,12 @@
       {
         "assets": [
           {
-            "path": "dist/*.unitypackage",
-            "label": "VALYR Unity Package (.unitypackage)"
+            "path": "dist/*.tgz",
+            "label": "VALYR UPM Package (${file.name})"
           },
           {
-            "path": "dist/*.tar.gz",
-            "label": "VALYR Source Distribution (.tar.gz)"
+            "path": "dist/*.unitypackage",
+            "label": "VALYR Legacy Unity Package (.unitypackage)"
           }
         ]
       }
@@ -57,7 +57,9 @@
       {
         "assets": [
           "CHANGELOG.md",
-          "package.json"
+          "package.json",
+          "Packages/com.valyr.core/package.json",
+          "Packages/com.valyr.multiplayer/package.json"
         ],
         "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
       }
