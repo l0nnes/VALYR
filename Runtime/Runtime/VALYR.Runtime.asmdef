@@ -4,8 +4,7 @@
     "references": [
         "VALYR.Core",
         "VALYR.Modules",
-        "Unity.InputSystem",
-        "Unity.Cinemachine"
+        "Unity.InputSystem"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
