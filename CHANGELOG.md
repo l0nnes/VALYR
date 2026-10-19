@@ -3,6 +3,14 @@
 
 ### Bug Fixes
 
+* **release:** configure git identity and explicit repositoryUrl for semantic-release ([844ec8a](https://github.com/l0nnes/VALYR/commit/844ec8a63ed068550582df15f7a030c27aee3d6b))
+* **release:** remove unsupported \ template from assets config ([b7d81d0](https://github.com/l0nnes/VALYR/commit/b7d81d09c4e23e54a59243c6aeff25933c5baf88))
+
+## [1.2.1](https://github.com/l0nnes/VALYR/compare/v1.2.0...v1.2.1) (2026-10-19)
+
+
+### Bug Fixes
+
 * **release:** remove unsupported \ template from assets config ([b7d81d0](https://github.com/l0nnes/VALYR/commit/b7d81d09c4e23e54a59243c6aeff25933c5baf88))
 
 # [1.2.0](https://github.com/l0nnes/VALYR/compare/v1.1.0...v1.2.0) (2026-10-19)
