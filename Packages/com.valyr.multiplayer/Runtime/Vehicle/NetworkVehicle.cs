@@ -1,53 +1,38 @@
 using System;
-using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
-using Unity.Cinemachine;
 using PurrNet;
 using PurrNet.Prediction;
 using VALYR.Core;
 using VALYR.Runtime;
 using VALYR.Runtime.Input;
-using VALYR.Runtime.Visual;
-using VALYR.Runtime.Cameras;
-using VALYR.Runtime.UI;
 
 namespace VALYR.Multiplayer
 {
     /// <summary>
     /// Base multiplayer adapter for VALYR vehicles over PurrNet.
-    /// Strictly responsible for:
-    /// - PurrNet identity and client-owner authority management
-    /// - Cinemachine camera rig binding (all 5 camera slots with C key switching)
-    /// - Synchronization adapter for vehicle sub-addons (doors, lights, interior controls)
-    /// - Coordinating with PredictedVehicle for client-side prediction and collision physics
+    /// Manages client-side ownership authority, synchronizes simulation state with PredictedVehicle,
+    /// and isolates local driver input from remote observer vehicles.
     /// </summary>
     [RequireComponent(typeof(VehicleController))]
     public class NetworkVehicle : NetworkBehaviour
     {
-        // Cached vehicle components
         private VehicleController _controller;
         private VehicleInputReader _inputReader;
-        private VehicleCameraController _cameraController;
-        private VehicleTelemetryHUD _telemetryHUD;
-        private VehicleVisualView _visualView;
         private PredictedVehicle _predictedVehicle;
         private Rigidbody _rigidbody;
-        private PredictedTransform _predictedTransform;
-
-        // Modular addon components
-        private NetworkVehicleDoors _netDoors;
-        private NetworkVehicleLights _netLights;
-        private NetworkVehicleInterior _netInterior;
-
-        private static readonly FieldInfo CameraSlotsField =
-            typeof(VehicleCameraController).GetField("_cameraSlots", BindingFlags.NonPublic | BindingFlags.Instance);
 
         /// <summary>
         /// Explicit target player ID assigned during server spawn.
         /// Prevents host from adopting remote client vehicles as local during spawn.
         /// </summary>
         public PlayerID? AssignedPlayerId { get; set; }
+
+        /// <summary>
+        /// Fires whenever ownership authority changes (true = local player controls vehicle, false = remote observer).
+        /// Cosmetic, camera, and UI scripts subscribe to this event to isolate local inputs.
+        /// </summary>
+        public event Action<bool> OnAuthorityChanged;
 
         public bool IsLocallyControlled
         {
@@ -73,7 +58,7 @@ namespace VALYR.Multiplayer
         }
 
         /// <summary>
-        /// Live state provider used by sub-addons (lights, interior dashboard, doors).
+        /// Live vehicle state provider used by networked addons and telemetry displays.
         /// Reads directly from PredictedVehicle's current predicted/reconciled simulation state.
         /// </summary>
         public VehicleNetworkState SyncedState
@@ -113,44 +98,14 @@ namespace VALYR.Multiplayer
         private void Awake()
         {
             EnsureComponentsCached();
-            EnsureModularComponentsAttached();
         }
 
         private void EnsureComponentsCached()
         {
             if (_controller == null) _controller = GetComponent<VehicleController>();
             if (_inputReader == null) _inputReader = GetComponent<VehicleInputReader>();
-            if (_cameraController == null) _cameraController = GetComponent<VehicleCameraController>();
-            if (_telemetryHUD == null) _telemetryHUD = GetComponent<VehicleTelemetryHUD>();
-            if (_visualView == null) _visualView = GetComponent<VehicleVisualView>();
             if (_predictedVehicle == null) _predictedVehicle = GetComponent<PredictedVehicle>();
             if (_rigidbody == null) _rigidbody = GetComponent<Rigidbody>();
-            if (_predictedTransform == null) _predictedTransform = GetComponent<PredictedTransform>();
-
-            if (_netDoors == null) _netDoors = GetComponent<NetworkVehicleDoors>();
-            if (_netLights == null) _netLights = GetComponent<NetworkVehicleLights>();
-            if (_netInterior == null) _netInterior = GetComponent<NetworkVehicleInterior>();
-        }
-
-        private void EnsureModularComponentsAttached()
-        {
-            if (_netDoors == null)
-            {
-                _netDoors = GetComponent<NetworkVehicleDoors>();
-                if (_netDoors == null) _netDoors = gameObject.AddComponent<NetworkVehicleDoors>();
-            }
-
-            if (_netLights == null)
-            {
-                _netLights = GetComponent<NetworkVehicleLights>();
-                if (_netLights == null) _netLights = gameObject.AddComponent<NetworkVehicleLights>();
-            }
-
-            if (_netInterior == null)
-            {
-                _netInterior = GetComponent<NetworkVehicleInterior>();
-                if (_netInterior == null) _netInterior = gameObject.AddComponent<NetworkVehicleInterior>();
-            }
         }
 
         private void Start()
@@ -188,12 +143,11 @@ namespace VALYR.Multiplayer
                 }
             }
 
-            // Input reader
+            // Input reader isolation
             if (_inputReader != null)
             {
                 if (!localControl)
                 {
-                    // Prevent VehicleInputReader.OnDisable() from disabling the shared InputActionMap for the local player
                     SetPrivateField(_inputReader, "_actionMap", null);
                 }
                 _inputReader.enabled = localControl;
@@ -209,178 +163,14 @@ namespace VALYR.Multiplayer
                 }
             }
 
-            // Camera controller & Cinemachine bindings
-            if (_cameraController != null)
-            {
-                if (!localControl)
-                {
-                    SetPrivateField(_cameraController, "_actionMap", null);
-                }
-                _cameraController.enabled = localControl;
-                if (localControl)
-                {
-                    RebindCinemachineCameras();
-                }
-            }
-
-            // UI HUD
-            if (_telemetryHUD != null)
-                _telemetryHUD.enabled = localControl;
-
-            // Sub-addon components
-            if (_netDoors != null) _netDoors.UpdateAuthorityState();
-            if (_netLights != null) _netLights.IsolateLightControllerInput();
-            if (_netInterior != null) _netInterior.UpdateAuthorityState();
+            // Notify all listening external/demo components (cameras, lights, doors, HUD)
+            OnAuthorityChanged?.Invoke(localControl);
         }
 
         private static void SetPrivateField(object target, string fieldName, object value)
         {
             var field = target?.GetType().GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Instance);
             field?.SetValue(target, value);
-        }
-
-        private void Update()
-        {
-            // Direct camera switching fallback for local driver (C key)
-            if (IsLocallyControlled)
-            {
-                var kb = UnityEngine.InputSystem.Keyboard.current;
-                if (kb != null)
-                {
-                    if (kb.cKey.wasPressedThisFrame && _cameraController != null && _cameraController.enabled)
-                    {
-                        _cameraController.CycleNextCamera();
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Binds scene Cinemachine cameras to follow this vehicle for the local player,
-        /// initializes input actions, and configures all camera slots so camera switching (C key) functions properly.
-        /// </summary>
-        public void RebindCinemachineCameras()
-        {
-            EnsureComponentsCached();
-
-            Transform visualRoot = (_predictedTransform != null && _predictedTransform.graphics != null)
-                ? _predictedTransform.graphics
-                : (transform.Find("Graphics") ?? transform.Find("Meshes") ?? transform);
-
-            Transform lookTarget = transform.Find("Graphics/CameraAnchors/LookTarget")
-                ?? transform.Find("CameraAnchors/LookTarget")
-                ?? transform.Find("LookTarget")
-                ?? visualRoot;
-
-            Transform cockpit = transform.Find("Graphics/CameraAnchors/CockpitAnchor")
-                ?? transform.Find("CameraAnchors/CockpitAnchor")
-                ?? transform.Find("CockpitAnchor")
-                ?? visualRoot;
-
-            Transform bumper = transform.Find("Graphics/CameraAnchors/BumperAnchor")
-                ?? transform.Find("CameraAnchors/BumperAnchor")
-                ?? transform.Find("BumperAnchor")
-                ?? visualRoot;
-
-            CinemachineCamera chaseNear = null;
-            CinemachineCamera chaseFar = null;
-            CinemachineCamera cockpitCam = null;
-            CinemachineCamera bumperCam = null;
-            CinemachineCamera freeLook = null;
-
-            var virtualCameras = FindObjectsByType<CinemachineCamera>(FindObjectsInactive.Include);
-            for (int i = 0; i < virtualCameras.Length; i++)
-            {
-                var vcam = virtualCameras[i];
-                if (vcam == null) continue;
-
-                string vcamName = vcam.name.ToLowerInvariant();
-
-                if (vcamName.Contains("cockpit") || vcamName.Contains("interior"))
-                {
-                    cockpitCam = vcam;
-                    vcam.Target.TrackingTarget = cockpit;
-                    vcam.Target.LookAtTarget = null;
-                }
-                else if (vcamName.Contains("bumper") || vcamName.Contains("hood"))
-                {
-                    bumperCam = vcam;
-                    vcam.Target.TrackingTarget = bumper;
-                    vcam.Target.LookAtTarget = null;
-                }
-                else if (vcamName.Contains("far"))
-                {
-                    chaseFar = vcam;
-                    vcam.Target.TrackingTarget = visualRoot;
-                    vcam.Target.LookAtTarget = lookTarget;
-                    ConfigureChaseDamping(vcam);
-                }
-                else if (vcamName.Contains("orbit") || vcamName.Contains("free"))
-                {
-                    freeLook = vcam;
-                    vcam.Target.TrackingTarget = visualRoot;
-                    vcam.Target.LookAtTarget = lookTarget;
-                }
-                else if (vcamName.Contains("near") || vcamName.Contains("chase"))
-                {
-                    chaseNear = vcam;
-                    vcam.Target.TrackingTarget = visualRoot;
-                    vcam.Target.LookAtTarget = lookTarget;
-                    ConfigureChaseDamping(vcam);
-                }
-            }
-
-            // Populate _cameraSlots on VehicleCameraController so "Change Camera" (C key) works seamlessly
-            if (_cameraController != null)
-            {
-                typeof(VehicleCameraController).GetMethod("InitializeInputActions",
-                    BindingFlags.NonPublic | BindingFlags.Instance)?.Invoke(_cameraController, null);
-
-                var camMap = _cameraController.GetType().GetField("_actionMap", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(_cameraController) as UnityEngine.InputSystem.InputActionMap;
-                if (camMap != null && !camMap.enabled)
-                {
-                    camMap.Enable();
-                }
-
-                if (CameraSlotsField != null)
-                {
-                    var slots = CameraSlotsField.GetValue(_cameraController) as List<VehicleCameraSlot>;
-                    if (slots == null)
-                    {
-                        slots = new List<VehicleCameraSlot>();
-                        CameraSlotsField.SetValue(_cameraController, slots);
-                    }
-
-                    slots.Clear();
-
-                    if (chaseNear != null)
-                        slots.Add(new VehicleCameraSlot { Mode = VehicleCameraMode.ChaseNear, DisplayName = "Chase Near", Camera = chaseNear, BaseFOV = 60f, MaxFOV = 74f, EnableDynamicFOV = true });
-                    if (chaseFar != null)
-                        slots.Add(new VehicleCameraSlot { Mode = VehicleCameraMode.ChaseFar, DisplayName = "Chase Far", Camera = chaseFar, BaseFOV = 65f, MaxFOV = 78f, EnableDynamicFOV = true });
-                    if (cockpitCam != null)
-                        slots.Add(new VehicleCameraSlot { Mode = VehicleCameraMode.Cockpit, DisplayName = "Cockpit", Camera = cockpitCam, BaseFOV = 75f, MaxFOV = 80f, EnableDynamicFOV = true });
-                    if (bumperCam != null)
-                        slots.Add(new VehicleCameraSlot { Mode = VehicleCameraMode.Bumper, DisplayName = "Bumper / Hood", Camera = bumperCam, BaseFOV = 75f, MaxFOV = 85f, EnableDynamicFOV = true });
-                    if (freeLook != null)
-                        slots.Add(new VehicleCameraSlot { Mode = VehicleCameraMode.FreeOrbit, DisplayName = "Free Orbit", Camera = freeLook, BaseFOV = 60f, MaxFOV = 60f, EnableDynamicFOV = false });
-
-                    _cameraController.SetCameraMode(VehicleCameraMode.ChaseNear);
-                }
-            }
-        }
-
-        private static void ConfigureChaseDamping(CinemachineCamera vcam)
-        {
-            if (vcam == null) return;
-            if (vcam.TryGetComponent<CinemachineFollow>(out var follow))
-            {
-                follow.TrackerSettings.PositionDamping = new Vector3(0.08f, 0.08f, 0.08f);
-                follow.TrackerSettings.RotationDamping = new Vector3(0.08f, 0.08f, 0.08f);
-            }
-            if (vcam.TryGetComponent<CinemachineRotationComposer>(out var rotComp))
-            {
-                rotComp.Damping = new Vector2(0.08f, 0.08f);
-            }
         }
     }
 }

@@ -297,6 +297,24 @@
       },
       "url": "https://packages.unity.com"
     },
+    "com.valyr.core": {
+      "version": "file:com.valyr.core",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.unity.inputsystem": "1.11.0"
+      }
+    },
+    "com.valyr.multiplayer": {
+      "version": "file:com.valyr.multiplayer",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.valyr.core": "https://github.com/l0nnes/VALYR.git?path=Packages/com.valyr.core#v1.2.0",
+        "dev.purrnet.purrnet": "https://github.com/PurrNet/PurrNet.git?path=/Assets/PurrNet#release",
+        "dev.purrnet.purrdiction": "https://github.com/PurrNet/PurrDiction.git?path=/Assets/PurrDiction#release"
+      }
+    },
     "dev.purrnet.purrdiction": {
       "version": "https://github.com/PurrNet/PurrDiction.git?path=/Assets/PurrDiction#release",
       "depth": 0,
