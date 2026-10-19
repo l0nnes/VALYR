@@ -442,23 +442,59 @@ namespace VALYR.Editor
                 return list;
 
             list = new List<Type>();
-            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                string name = assembly.GetName().Name;
-                if (!name.StartsWith("VALYR") && !name.StartsWith("Assembly-CSharp"))
-                    continue;
 
-                try
+            // 1. Fast-path: Unity's native TypeCache indexes all types across assemblies
+            var cachedTypes = TypeCache.GetTypesDerivedFrom(targetType);
+            for (int i = 0; i < cachedTypes.Count; i++)
+            {
+                Type type = cachedTypes[i];
+                if (!type.IsAbstract && !type.IsInterface)
                 {
-                    foreach (var type in assembly.GetTypes())
+                    list.Add(type);
+                }
+            }
+
+            // 2. Fallback: Scan loaded assemblies referencing VALYR.Core or Assembly-CSharp
+            if (list.Count == 0)
+            {
+                foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    string name = assembly.GetName().Name;
+                    bool isValyr = name.StartsWith("VALYR");
+                    bool isTargetAssembly = isValyr || name.StartsWith("Assembly-CSharp");
+
+                    if (!isTargetAssembly)
                     {
-                        if (!type.IsAbstract && !type.IsInterface && targetType.IsAssignableFrom(type))
+                        try
                         {
-                            list.Add(type);
+                            foreach (var refName in assembly.GetReferencedAssemblies())
+                            {
+                                if (refName.Name == "VALYR.Core")
+                                {
+                                    isTargetAssembly = true;
+                                    break;
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+
+                    if (!isTargetAssembly)
+                        continue;
+
+                    try
+                    {
+                        foreach (var type in assembly.GetTypes())
+                        {
+                            if (!type.IsAbstract && !type.IsInterface && targetType.IsAssignableFrom(type))
+                            {
+                                if (!list.Contains(type))
+                                    list.Add(type);
+                            }
                         }
                     }
+                    catch { }
                 }
-                catch { }
             }
 
             _typeCache[targetType] = list;
