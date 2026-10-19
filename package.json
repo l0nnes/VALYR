@@ -1,6 +1,6 @@
 {
   "name": "com.valyr.core",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "displayName": "VALYR Vehicle Simulation Framework",
   "description": "Modular vehicle physics, kinematics, drivetrain, suspension and telemetry framework for Unity.",
   "unity": "6000.0",
