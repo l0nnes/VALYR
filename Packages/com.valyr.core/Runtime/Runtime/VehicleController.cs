@@ -208,6 +208,10 @@ namespace VALYR.Runtime
             {
                 _rigidbody.mass = ChassisMass;
                 _rigidbody.centerOfMass = CenterOfMass;
+                if (_rigidbody.interpolation == RigidbodyInterpolation.None)
+                {
+                    _rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
+                }
             }
 
             if (_visualView == null)

@@ -2374,6 +2374,7 @@ GameObject:
   - component: {fileID: 8305835251514692734}
   - component: {fileID: 6156848399304488289}
   - component: {fileID: 5773993298570272612}
+  - component: {fileID: 7001002003004005001}
   m_Layer: 3
   m_Name: NetworkTruck
   m_TagString: Untagged
@@ -3332,6 +3333,18 @@ MonoBehaviour:
   - Name: Tailgate
     VisualTransform: {fileID: 6304081325198386191}
     ColliderTransform: {fileID: 7230609573602249616}
+--- !u!114 &7001002003004005001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2344141437621414101}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 939dc53f18bc4357a688390b514e88c2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: VALYR.Demo.Multiplayer::VALYR.Demo.Multiplayer.DemoVehicleNetworkBinder
 --- !u!1 &2446260437280071161
 GameObject:
   m_ObjectHideFlags: 0

@@ -269,6 +269,8 @@ namespace VALYR.Runtime.Cameras
         private void OnEnable()
         {
             EnsureCinemachineBrain();
+            EnsureCameraSlots();
+            ApplyCameraPriorities();
 
             if (_actionMap != null && !_actionMap.enabled)
             {
@@ -289,6 +291,11 @@ namespace VALYR.Runtime.Cameras
             }
 
             _actionMap?.Disable();
+
+            if (_cinemachineBrain != null && DriveManualUpdate)
+            {
+                _cinemachineBrain.UpdateMethod = CinemachineBrain.UpdateMethods.SmartUpdate;
+            }
         }
 
         private void InitializeInputActions()
@@ -535,8 +542,12 @@ namespace VALYR.Runtime.Cameras
             if (DriveManualUpdate)
             {
                 EnsureCinemachineBrain();
-                if (_cinemachineBrain != null && _cinemachineBrain.UpdateMethod == CinemachineBrain.UpdateMethods.ManualUpdate)
+                if (_cinemachineBrain != null)
                 {
+                    if (_cinemachineBrain.UpdateMethod != CinemachineBrain.UpdateMethods.ManualUpdate)
+                    {
+                        _cinemachineBrain.UpdateMethod = CinemachineBrain.UpdateMethods.ManualUpdate;
+                    }
                     _cinemachineBrain.ManualUpdate();
                 }
             }
@@ -582,67 +593,149 @@ namespace VALYR.Runtime.Cameras
         }
 
         /// <summary>
+        /// <summary>
         /// Ensures default camera slots and references are populated.
         /// </summary>
         public void EnsureCameraSlots()
         {
-            if (_cameraSlots == null)
+            if (_cameraSlots == null || _cameraSlots.Count == 0 || _cameraSlots.Exists(s => s == null || s.Camera == null))
             {
-                _cameraSlots = new List<VehicleCameraSlot>();
+                AutoBindSceneCameras();
+            }
+        }
+
+        /// <summary>
+        /// Automatically discovers scene Cinemachine cameras and binds their targets to this vehicle.
+        /// Configures tracking anchors, damping, and default priorities.
+        /// </summary>
+        public void AutoBindSceneCameras(Transform visualRoot = null, Transform lookTarget = null)
+        {
+            if (visualRoot == null)
+            {
+                visualRoot = transform.Find("Graphics") ?? transform.Find("Meshes") ?? transform;
             }
 
-            // If empty, look for child CinemachineCamera components
+            if (_lookTarget == null)
+            {
+                _lookTarget = lookTarget ?? transform.Find("Graphics/CameraAnchors/LookTarget")
+                    ?? transform.Find("CameraAnchors/LookTarget")
+                    ?? transform.Find("LookTarget")
+                    ?? visualRoot;
+            }
+
+            if (_cockpitAnchor == null)
+            {
+                _cockpitAnchor = transform.Find("Graphics/CameraAnchors/CockpitAnchor")
+                    ?? transform.Find("CameraAnchors/CockpitAnchor")
+                    ?? transform.Find("CockpitAnchor")
+                    ?? visualRoot;
+            }
+
+            if (_bumperAnchor == null)
+            {
+                _bumperAnchor = transform.Find("Graphics/CameraAnchors/BumperAnchor")
+                    ?? transform.Find("CameraAnchors/BumperAnchor")
+                    ?? transform.Find("BumperAnchor")
+                    ?? visualRoot;
+            }
+
+            CinemachineCamera chaseNear = null;
+            CinemachineCamera chaseFar = null;
+            CinemachineCamera cockpitCam = null;
+            CinemachineCamera bumperCam = null;
+            CinemachineCamera freeLook = null;
+
+            var virtualCameras = FindObjectsByType<CinemachineCamera>(FindObjectsInactive.Include);
+            for (int i = 0; i < virtualCameras.Length; i++)
+            {
+                var vcam = virtualCameras[i];
+                if (vcam == null) continue;
+
+                string vcamName = vcam.name.ToLowerInvariant();
+
+                if (vcamName.Contains("cockpit") || vcamName.Contains("interior"))
+                {
+                    cockpitCam = vcam;
+                    vcam.Target.TrackingTarget = _cockpitAnchor;
+                    vcam.Target.LookAtTarget = null;
+                }
+                else if (vcamName.Contains("bumper") || vcamName.Contains("hood"))
+                {
+                    bumperCam = vcam;
+                    vcam.Target.TrackingTarget = _bumperAnchor;
+                    vcam.Target.LookAtTarget = null;
+                }
+                else if (vcamName.Contains("far"))
+                {
+                    chaseFar = vcam;
+                    vcam.Target.TrackingTarget = visualRoot;
+                    vcam.Target.LookAtTarget = _lookTarget;
+                    ConfigureChaseDamping(vcam);
+                }
+                else if (vcamName.Contains("orbit") || vcamName.Contains("free"))
+                {
+                    freeLook = vcam;
+                    vcam.Target.TrackingTarget = visualRoot;
+                    vcam.Target.LookAtTarget = _lookTarget;
+                }
+                else if (vcamName.Contains("near") || vcamName.Contains("chase"))
+                {
+                    chaseNear = vcam;
+                    vcam.Target.TrackingTarget = visualRoot;
+                    vcam.Target.LookAtTarget = _lookTarget;
+                    ConfigureChaseDamping(vcam);
+                }
+            }
+
+            if (_cameraSlots == null)
+                _cameraSlots = new List<VehicleCameraSlot>();
+            else
+                _cameraSlots.Clear();
+
+            if (chaseNear != null)
+                _cameraSlots.Add(new VehicleCameraSlot { Mode = VehicleCameraMode.ChaseNear, DisplayName = "Chase Near", Camera = chaseNear, BaseFOV = 60f, MaxFOV = 74f, EnableDynamicFOV = true });
+            if (chaseFar != null)
+                _cameraSlots.Add(new VehicleCameraSlot { Mode = VehicleCameraMode.ChaseFar, DisplayName = "Chase Far", Camera = chaseFar, BaseFOV = 65f, MaxFOV = 78f, EnableDynamicFOV = true });
+            if (cockpitCam != null)
+                _cameraSlots.Add(new VehicleCameraSlot { Mode = VehicleCameraMode.Cockpit, DisplayName = "Cockpit", Camera = cockpitCam, BaseFOV = 75f, MaxFOV = 80f, EnableDynamicFOV = true });
+            if (bumperCam != null)
+                _cameraSlots.Add(new VehicleCameraSlot { Mode = VehicleCameraMode.Bumper, DisplayName = "Bumper / Hood", Camera = bumperCam, BaseFOV = 75f, MaxFOV = 85f, EnableDynamicFOV = true });
+            if (freeLook != null)
+                _cameraSlots.Add(new VehicleCameraSlot { Mode = VehicleCameraMode.FreeOrbit, DisplayName = "Free Orbit", Camera = freeLook, BaseFOV = 60f, MaxFOV = 60f, EnableDynamicFOV = false });
+
             if (_cameraSlots.Count == 0)
             {
                 var cams = GetComponentsInChildren<CinemachineCamera>(true);
                 for (int i = 0; i < cams.Length; i++)
                 {
-                    var c = cams[i];
-                    string lowerName = c.name.ToLowerInvariant();
-                    VehicleCameraMode mode = VehicleCameraMode.ChaseNear;
-                    string displayName = "Chase Near";
-                    float baseFov = 60f;
-                    float maxFov = 74f;
-
-                    if (lowerName.Contains("far"))
-                    {
-                        mode = VehicleCameraMode.ChaseFar;
-                        displayName = "Chase Far";
-                        baseFov = 65f;
-                        maxFov = 78f;
-                    }
-                    else if (lowerName.Contains("cockpit") || lowerName.Contains("interior"))
-                    {
-                        mode = VehicleCameraMode.Cockpit;
-                        displayName = "Cockpit";
-                        baseFov = 75f;
-                        maxFov = 80f;
-                    }
-                    else if (lowerName.Contains("bumper") || lowerName.Contains("hood"))
-                    {
-                        mode = VehicleCameraMode.Bumper;
-                        displayName = "Bumper / Hood";
-                        baseFov = 75f;
-                        maxFov = 85f;
-                    }
-                    else if (lowerName.Contains("orbit") || lowerName.Contains("free"))
-                    {
-                        mode = VehicleCameraMode.FreeOrbit;
-                        displayName = "Free Orbit";
-                        baseFov = 60f;
-                        maxFov = 60f;
-                    }
-
                     _cameraSlots.Add(new VehicleCameraSlot
                     {
-                        Mode = mode,
-                        DisplayName = displayName,
-                        Camera = c,
-                        BaseFOV = baseFov,
-                        MaxFOV = maxFov,
-                        EnableDynamicFOV = (mode != VehicleCameraMode.FreeOrbit)
+                        Mode = (VehicleCameraMode)Mathf.Clamp(i, 0, 4),
+                        DisplayName = cams[i].name,
+                        Camera = cams[i],
+                        BaseFOV = 60f,
+                        MaxFOV = 75f,
+                        EnableDynamicFOV = true
                     });
                 }
+            }
+
+            EnsureCinemachineBrain();
+            SetCameraMode(VehicleCameraMode.ChaseNear);
+            ApplyCameraPriorities();
+        }
+
+        private static void ConfigureChaseDamping(CinemachineCamera vcam)
+        {
+            if (vcam == null) return;
+            if (vcam.TryGetComponent<CinemachineFollow>(out var follow))
+            {
+                follow.TrackerSettings.PositionDamping = new Vector3(0.08f, 0.08f, 0.08f);
+                follow.TrackerSettings.RotationDamping = new Vector3(0.08f, 0.08f, 0.08f);
+            }
+            if (vcam.TryGetComponent<CinemachineRotationComposer>(out var rotComp))
+            {
+                rotComp.Damping = new Vector2(0.08f, 0.08f);
             }
         }
     }

@@ -67,10 +67,17 @@ namespace VALYR.Multiplayer
 
         private void Start()
         {
-            if (SceneVehicle != null && !SceneVehicle.gameObject.activeSelf)
+            if (SceneVehicle != null)
             {
-                SceneVehicle.gameObject.SetActive(true);
+                if (!SceneVehicle.gameObject.activeSelf)
+                    SceneVehicle.gameObject.SetActive(true);
+
                 SceneVehicle.UpdateAuthorityState();
+                SceneVehicle.RebindCinemachineCameras();
+            }
+            else if (NetworkManager.main == null || NetworkManager.main.isOffline)
+            {
+                SpawnOfflineVehicle();
             }
         }
 
@@ -116,9 +123,9 @@ namespace VALYR.Multiplayer
         }
 
         /// <summary>
-        /// Starts multiplayer as Host (Listen Server + Local Client).
+        /// Starts multiplayer host using local/LAN UDP transport.
         /// </summary>
-        public void StartHost()
+        public void StartHostUDP(ushort port = 5003)
         {
             var net = NetworkManager.main;
             if (net == null)
@@ -127,8 +134,84 @@ namespace VALYR.Multiplayer
                 return;
             }
 
-            ConfigureTransport(DefaultAddress, DefaultPort);
+            var udp = net.GetComponent<UDPTransport>() ?? net.gameObject.AddComponent<UDPTransport>();
+            udp.serverPort = port > 0 ? port : DefaultPort;
+            net.transport = udp;
             net.StartHost();
+        }
+
+        /// <summary>
+        /// Connects to a remote server using local/LAN UDP transport.
+        /// </summary>
+        public void StartClientUDP(string address, ushort port = 5003)
+        {
+            var net = NetworkManager.main;
+            if (net == null)
+            {
+                Debug.LogError("[MultiplayerLobbyManager] No NetworkManager found in scene!");
+                return;
+            }
+
+            var udp = net.GetComponent<UDPTransport>() ?? net.gameObject.AddComponent<UDPTransport>();
+            udp.address = string.IsNullOrEmpty(address) ? DefaultAddress : address;
+            udp.serverPort = port > 0 ? port : DefaultPort;
+            net.transport = udp;
+            net.StartClient();
+        }
+
+        /// <summary>
+        /// Starts dedicated server using UDP transport.
+        /// </summary>
+        public void StartServerUDP(ushort port = 5003)
+        {
+            var net = NetworkManager.main;
+            if (net == null)
+            {
+                Debug.LogError("[MultiplayerLobbyManager] No NetworkManager found in scene!");
+                return;
+            }
+
+            var udp = net.GetComponent<UDPTransport>() ?? net.gameObject.AddComponent<UDPTransport>();
+            udp.serverPort = port > 0 ? port : DefaultPort;
+            net.transport = udp;
+            net.StartServer();
+        }
+
+        /// <summary>
+        /// Starts multiplayer host using Steam P2P transport.
+        /// </summary>
+        public void StartHostSteam()
+        {
+            var net = NetworkManager.main;
+            if (net == null) return;
+
+            var steam = net.GetComponent<PurrNet.Steam.SteamTransport>() ?? net.gameObject.AddComponent<PurrNet.Steam.SteamTransport>();
+            steam.peerToPeer = true;
+            net.transport = steam;
+            net.StartHost();
+        }
+
+        /// <summary>
+        /// Connects to host via Steam P2P transport by SteamID.
+        /// </summary>
+        public void StartClientSteam(string steamId)
+        {
+            var net = NetworkManager.main;
+            if (net == null || string.IsNullOrEmpty(steamId)) return;
+
+            var steam = net.GetComponent<PurrNet.Steam.SteamTransport>() ?? net.gameObject.AddComponent<PurrNet.Steam.SteamTransport>();
+            steam.peerToPeer = true;
+            steam.address = steamId;
+            net.transport = steam;
+            net.StartClient();
+        }
+
+        /// <summary>
+        /// Starts multiplayer as Host (Listen Server + Local Client).
+        /// </summary>
+        public void StartHost()
+        {
+            StartHostUDP(DefaultPort);
         }
 
         /// <summary>
@@ -136,15 +219,7 @@ namespace VALYR.Multiplayer
         /// </summary>
         public void StartClient(string address, ushort port)
         {
-            var net = NetworkManager.main;
-            if (net == null)
-            {
-                Debug.LogError("[MultiplayerLobbyManager] No NetworkManager found in scene!");
-                return;
-            }
-
-            ConfigureTransport(address, port);
-            net.StartClient();
+            StartClientUDP(address, port);
         }
 
         /// <summary>
@@ -152,15 +227,36 @@ namespace VALYR.Multiplayer
         /// </summary>
         public void StartServer()
         {
-            var net = NetworkManager.main;
-            if (net == null)
+            StartServerUDP(DefaultPort);
+        }
+
+        /// <summary>
+        /// Spawns a vehicle locally for offline testing or singleplayer testing inside SampleScene.
+        /// </summary>
+        public NetworkVehicle SpawnOfflineVehicle()
+        {
+            if (SceneVehicle != null && SceneVehicle.gameObject.activeSelf)
             {
-                Debug.LogError("[MultiplayerLobbyManager] No NetworkManager found in scene!");
-                return;
+                SceneVehicle.RebindCinemachineCameras();
+                return SceneVehicle;
             }
 
-            ConfigureTransport(DefaultAddress, DefaultPort);
-            net.StartServer();
+            if (VehiclePrefab == null)
+            {
+                return null;
+            }
+
+            Transform spawn = (SpawnPoints != null && SpawnPoints.Length > 0) ? SpawnPoints[0] : null;
+            Vector3 pos = spawn != null ? spawn.position : new Vector3(0f, 0.6f, 0f);
+            Quaternion rot = spawn != null ? spawn.rotation : Quaternion.identity;
+
+            NetworkVehicle car = Instantiate(VehiclePrefab, pos, rot);
+            car.name = "Offline_TestTruck";
+            SceneVehicle = car;
+            car.gameObject.SetActive(true);
+            car.UpdateAuthorityState();
+            car.RebindCinemachineCameras();
+            return car;
         }
 
         /// <summary>
@@ -183,28 +279,7 @@ namespace VALYR.Multiplayer
             {
                 SceneVehicle.gameObject.SetActive(true);
                 SceneVehicle.UpdateAuthorityState();
-            }
-        }
-
-        private void ConfigureTransport(string address, ushort port)
-        {
-            var net = NetworkManager.main;
-            if (net == null) return;
-
-            var steam = net.GetComponent<PurrNet.Steam.SteamTransport>();
-            if (steam != null)
-            {
-                steam.peerToPeer = true;
-                if (!string.IsNullOrEmpty(address))
-                    steam.address = address;
-                return;
-            }
-
-            var udp = net.GetComponent<UDPTransport>();
-            if (udp != null)
-            {
-                udp.address = string.IsNullOrEmpty(address) ? DefaultAddress : address;
-                udp.serverPort = port > 0 ? port : DefaultPort;
+                SceneVehicle.RebindCinemachineCameras();
             }
         }
 

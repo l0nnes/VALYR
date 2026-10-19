@@ -26,10 +26,15 @@ namespace VALYR.Multiplayer
         [Tooltip("SteamID64 of the host to connect directly if not using Steam Lobby.")]
         public string TargetSteamId = "";
 
+        [Header("LAN / Direct Connect Configuration")]
+        public string TargetIpAddress = "127.0.0.1";
+        public ushort TargetPort = 5003;
+
         [Header("Window Layout")]
-        public Rect WindowRect = new Rect(24, 24, 340, 290);
+        public Rect WindowRect = new Rect(24, 24, 380, 370);
 
         private bool _isOpen = false;
+        private int _transportTab = 0; // 0 = LAN UDP, 1 = Steam
         private GUIStyle _windowStyle;
         private GUIStyle _buttonStyle;
         private GUIStyle _accentButtonStyle;
@@ -69,7 +74,7 @@ namespace VALYR.Multiplayer
                 return;
             }
 
-            WindowRect = GUI.Window(99201, WindowRect, DrawWindowContents, "VALYR Multiplayer (Steam)", _windowStyle);
+            WindowRect = GUI.Window(99201, WindowRect, DrawWindowContents, "VALYR Multiplayer Lobby", _windowStyle);
         }
 
         private void InitStyles()
@@ -133,7 +138,7 @@ namespace VALYR.Multiplayer
 #endif
 
             // Network Session Status
-            string statusText = "Offline (Singleplayer)";
+            string statusText = "Offline";
             Color statusColor = Color.gray;
 
             if (net != null)
@@ -168,15 +173,20 @@ namespace VALYR.Multiplayer
             // In-Match Controls
             if (net != null && !net.isOffline)
             {
-                // Invite Friends via Steam Overlay
-                if (GUILayout.Button("Invite Friends (Steam Overlay)", _accentButtonStyle))
+                if (GUILayout.Button("Disconnect / Stop Session", _accentButtonStyle))
+                {
+                    lobby?.Disconnect();
+                }
+
+                GUILayout.Space(4);
+
+                if (GUILayout.Button("Invite Friends (Steam Overlay)", _buttonStyle))
                 {
                     SteamMultiplayerHelper.OpenSteamInviteOverlay();
                 }
 
                 GUILayout.Space(6);
 
-                // Leave / Disconnect
                 if (GUILayout.Button("Leave to Main Menu", _buttonStyle))
                 {
                     SteamMultiplayerHelper.LeaveCurrentGameToMenu();
@@ -184,36 +194,72 @@ namespace VALYR.Multiplayer
             }
             else
             {
-                // Offline fallback (when running SampleScene directly for testing)
-                GUILayout.Label("Direct Steam P2P Connect (Dev):", _labelStyle);
-                GUILayout.BeginHorizontal();
-                GUILayout.Label("Host ID:", _labelStyle, GUILayout.Width(55));
-                TargetSteamId = GUILayout.TextField(TargetSteamId);
-                GUILayout.EndHorizontal();
+                _transportTab = GUILayout.Toolbar(_transportTab, new[] { "LAN / UDP", "Steam P2P" });
+                GUILayout.Space(6);
 
-                GUILayout.Space(4);
-
-                if (GUILayout.Button("Host Game (Steam P2P)", _buttonStyle))
+                if (_transportTab == 0)
                 {
-                    if (net != null)
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("IP:", _labelStyle, GUILayout.Width(30));
+                    TargetIpAddress = GUILayout.TextField(TargetIpAddress);
+                    GUILayout.Label("Port:", _labelStyle, GUILayout.Width(35));
+                    string pStr = GUILayout.TextField(TargetPort.ToString(), GUILayout.Width(55));
+                    if (ushort.TryParse(pStr, out var parsedPort)) TargetPort = parsedPort;
+                    GUILayout.EndHorizontal();
+
+                    GUILayout.Space(4);
+
+                    if (GUILayout.Button("Host Server (LAN / UDP)", _accentButtonStyle))
                     {
-                        var steamTransport = net.GetComponent<SteamTransport>() ?? net.gameObject.AddComponent<SteamTransport>();
-                        net.transport = steamTransport;
-                        steamTransport.peerToPeer = true;
-                        net.StartHost();
+                        lobby?.StartHostUDP(TargetPort);
+                    }
+
+                    if (GUILayout.Button("Connect as Client (UDP)", _buttonStyle))
+                    {
+                        lobby?.StartClientUDP(TargetIpAddress, TargetPort);
                     }
                 }
-
-                if (GUILayout.Button("Join by SteamID", _buttonStyle))
+                else
                 {
-                    if (net != null && !string.IsNullOrEmpty(TargetSteamId))
+                    bool steamReady = false;
+#if STEAMWORKS
+                    steamReady = SteamRuntime.isInitialized;
+#endif
+                    if (!steamReady)
                     {
-                        var steamTransport = net.GetComponent<SteamTransport>() ?? net.gameObject.AddComponent<SteamTransport>();
-                        net.transport = steamTransport;
-                        steamTransport.peerToPeer = true;
-                        steamTransport.address = TargetSteamId;
-                        net.StartClient();
+                        GUI.color = new Color(1f, 0.75f, 0.4f);
+                        GUILayout.Label("Steam is offline! Use LAN / UDP tab for local testing.", _labelStyle);
+                        GUI.color = prevColor;
                     }
+
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("Host ID:", _labelStyle, GUILayout.Width(55));
+                    TargetSteamId = GUILayout.TextField(TargetSteamId);
+                    GUILayout.EndHorizontal();
+
+                    GUILayout.Space(4);
+
+                    GUI.enabled = steamReady;
+                    if (GUILayout.Button("Host Game (Steam P2P)", _buttonStyle))
+                    {
+                        lobby?.StartHostSteam();
+                    }
+
+                    if (GUILayout.Button("Join by SteamID", _buttonStyle))
+                    {
+                        if (!string.IsNullOrEmpty(TargetSteamId))
+                        {
+                            lobby?.StartClientSteam(TargetSteamId);
+                        }
+                    }
+                    GUI.enabled = true;
+                }
+
+                GUILayout.Space(6);
+
+                if (GUILayout.Button("Spawn / Reset Test Vehicle (Offline)", _miniButtonStyle))
+                {
+                    lobby?.SpawnOfflineVehicle();
                 }
 
                 GUILayout.Space(4);
