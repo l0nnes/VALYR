@@ -41,14 +41,8 @@
       "@semantic-release/github",
       {
         "assets": [
-          {
-            "path": "dist/*.tgz",
-            "label": "VALYR UPM Package (${file.name})"
-          },
-          {
-            "path": "dist/*.unitypackage",
-            "label": "VALYR Legacy Unity Package (.unitypackage)"
-          }
+          "dist/*.tgz",
+          "dist/*.unitypackage"
         ]
       }
     ],
