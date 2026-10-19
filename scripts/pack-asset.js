@@ -69,21 +69,24 @@ async function packAsset() {
   console.log('📦 Creating UPM tarball for com.valyr.multiplayer...');
   execSync(`npm pack ./Packages/com.valyr.multiplayer --pack-destination ./dist`, { stdio: 'inherit' });
 
-  // 5. Create legacy .unitypackage including Packages and Settings
-  const TARGET_DIRS = [
-    'Packages/com.valyr.core',
-    'Packages/com.valyr.multiplayer',
-    'Assets/Settings'
-  ];
+  // 5. Create .unitypackage distributions for Core, Multiplayer, and All
+  console.log('📦 Creating unitypackages for Core, Multiplayer, and All...');
+  await createUnityPackage(['Packages/com.valyr.core'], `VALYR-Core-v${version}.unitypackage`, outDir);
+  await createUnityPackage(['Packages/com.valyr.multiplayer'], `VALYR-Multiplayer-v${version}.unitypackage`, outDir);
+  await createUnityPackage(['Packages/com.valyr.core', 'Packages/com.valyr.multiplayer', 'Assets/Settings'], `VALYR-All-v${version}.unitypackage`, outDir);
 
-  const tempStaging = path.resolve('.unitypackage-temp');
+  console.log(`✨ Package build completed successfully.`);
+}
+
+async function createUnityPackage(targetDirs, packageName, outDir) {
+  const tempStaging = path.resolve(`.unitypackage-temp-${packageName}`);
   if (fs.existsSync(tempStaging)) {
     fs.rmSync(tempStaging, { recursive: true, force: true });
   }
   fs.mkdirSync(tempStaging, { recursive: true });
 
   const allAssetPaths = [];
-  for (const target of TARGET_DIRS) {
+  for (const target of targetDirs) {
     if (fs.existsSync(target)) {
       allAssetPaths.push(target);
       collectAssets(target, allAssetPaths);
@@ -115,14 +118,12 @@ async function packAsset() {
   }
 
   if (guidDirs.length > 0) {
-    const unityPackageName = `VALYR-All-v${version}.unitypackage`;
-    const unityPackagePath = path.join(outDir, unityPackageName);
+    const unityPackagePath = path.join(outDir, packageName);
     await tar.c({ gzip: true, file: unityPackagePath, cwd: tempStaging }, guidDirs);
     console.log(`🎉 Created unitypackage: ${unityPackagePath} (${(fs.statSync(unityPackagePath).size / 1024).toFixed(1)} KB)`);
   }
 
   fs.rmSync(tempStaging, { recursive: true, force: true });
-  console.log(`✨ Package build completed successfully.`);
 }
 
 packAsset().catch((err) => {
