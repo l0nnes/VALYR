@@ -1,0 +1,34 @@
+{
+    "name": "VALYR.Demo.Multiplayer",
+    "rootNamespace": "VALYR.Demo.Multiplayer",
+    "references": [
+        "VALYR.Core",
+        "VALYR.Modules",
+        "VALYR.Runtime",
+        "VALYR.Multiplayer",
+        "PurrNet.Runtime",
+        "PurrNet.Prediction",
+        "PurrNet.Prediction.Prebuilt",
+        "Unity.InputSystem",
+        "Unity.Cinemachine",
+        "Unity.TextMeshPro",
+        "UnityEngine.UI",
+        "GUID:fb5aa70e09e0db742957de215ef97d5b",
+        "GUID:343a628c29ff890428d625f61239778f"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.rlabrecque.steamworks.net",
+            "expression": "",
+            "define": "STEAMWORKS"
+        }
+    ],
+    "noEngineReferences": false
+}

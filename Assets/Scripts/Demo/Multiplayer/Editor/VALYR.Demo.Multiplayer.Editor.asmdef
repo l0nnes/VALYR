@@ -1,8 +1,8 @@
 {
-    "name": "VALYR.Multiplayer.Editor",
-    "rootNamespace": "VALYR.Multiplayer.Editor",
+    "name": "VALYR.Demo.Multiplayer.Editor",
+    "rootNamespace": "VALYR.Demo.Multiplayer.Editor",
     "references": [
-        "VALYR.Multiplayer"
+        "VALYR.Demo.Multiplayer"
     ],
     "includePlatforms": [
         "Editor"
