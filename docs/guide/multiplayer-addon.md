@@ -4,53 +4,25 @@ The **VALYR Multiplayer Addon** is a modular networking layer built on top of [P
 
 ---
 
-## 🌿 Repository & Branch Strategy
+## 📦 Package Architecture
 
-The project maintains a clean **single-repository, two-branch** architecture:
+VALYR uses a unified monorepo architecture where the multiplayer layer is decoupled into its own standalone Unity package (`com.valyr.multiplayer`):
 
-```mermaid
-gitGraph
-   commit id: "Core: Suspension & Tires"
-   commit id: "Core: Powertrain & Camera"
-   branch feat/multiplayer-addon
-   checkout feat/multiplayer-addon
-   commit id: "Multiplayer: PurrNet Lobby"
-   commit id: "Multiplayer: PurrDiction Prediction"
-   checkout master
-   commit id: "Core: Wheel Visual Smoothing"
-   checkout feat/multiplayer-addon
-   merge master id: "Rebase on master"
-   commit id: "Multiplayer: Kinematic Proxy"
+```text
+Packages/
+  ├── com.valyr.core          <-- Pure vehicle simulation (zero networking dependencies)
+  └── com.valyr.multiplayer   <-- Network replication, prediction & rollback (PurrNet & PurrDiction)
 ```
 
-| Branch | Contents | Dependencies | Responsibility |
-|---|---|---|---|
-| `master` | **VALYR Core** | Unity Input System, Cinemachine | Standalone single-player vehicle simulation, physics solvers, cameras, audio/visual views, and telemetry. |
-| `feat/multiplayer-addon` | **Core + Multiplayer Addon** | Core + PurrNet, PurrDiction, Multiplayer Playmode | Full network replication, client-side prediction, rollback reconciliation, lobby management, and remote proxy collision. |
+### Installation via UPM
 
----
-
-## 🔄 Rebase Workflow
-
-Whenever changes, features, or fixes are added to the **Core** on `master`, sync them into the multiplayer addon branch using Git rebase:
-
-```bash
-# 1. Ensure master is up-to-date
-git checkout master
-git pull origin master
-
-# 2. Switch to the multiplayer addon branch
-git checkout feat/multiplayer-addon
-
-# 3. Rebase your multiplayer commits on top of the latest Core
-git rebase master
-
-# 4. Push the rebased branch to remote
-git push origin feat/multiplayer-addon --force-with-lease
-```
-
-> [!TIP]
-> **Clean History**: By keeping Core modifications strictly on `master` and rebasing `feat/multiplayer-addon`, all multiplayer commits remain isolated at the tip of the git graph. When the addon is eventually separated into an independent UPM package in the future, the migration will be straightforward.
+To install the Multiplayer Addon in your project:
+1. In the Unity Package Manager, click **+ ➔ Add package from git URL...**
+2. Enter:
+   ```text
+   https://github.com/l0nnes/VALYR.git#upm/multiplayer
+   ```
+3. Unity will resolve the package along with its dependency on `com.valyr.core`. Ensure you also have [PurrNet](https://purrnet.dev) and [PurrDiction](https://github.com/PurrNet/PurrDiction) installed in your project.
 
 ---
 

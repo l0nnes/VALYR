@@ -12,7 +12,8 @@ export default withMermaid(
       { text: 'Home', link: '/' },
       { text: 'Quick Start', link: '/guide/quick-start' },
       { text: 'Architecture', link: '/guide/architecture' },
-      { text: 'Modules', link: '/guide/wheel-contact' },
+      { text: 'Custom Modules', link: '/guide/custom-modules' },
+      { text: 'Subsystems', link: '/guide/wheel-contact' },
       { text: 'Presets', link: '/guide/presets' },
       { text: 'Multiplayer Addon', link: '/guide/multiplayer-addon' }
     ],
@@ -22,7 +23,8 @@ export default withMermaid(
         items: [
           { text: 'Overview', link: '/' },
           { text: 'Quick Start Guide', link: '/guide/quick-start' },
-          { text: 'System Architecture', link: '/guide/architecture' }
+          { text: 'System Architecture', link: '/guide/architecture' },
+          { text: 'Creating Custom Modules', link: '/guide/custom-modules' }
         ]
       },
       {
