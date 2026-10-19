@@ -5,6 +5,10 @@
   "description": "Vehicle simulation framework for Unity and other engines.",
   "author": "Zakhar Czembrowicz (l0nnes)",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/l0nnes/VALYR.git"
+  },
   "scripts": {
     "release": "semantic-release",
     "release:dry-run": "semantic-release --dry-run",

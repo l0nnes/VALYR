@@ -16,6 +16,7 @@
     }
   ],
   "tagFormat": "v${version}",
+  "repositoryUrl": "https://github.com/l0nnes/VALYR.git",
   "plugins": [
     "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",
