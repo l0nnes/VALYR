@@ -1,0 +1,26 @@
+{
+  "name": "com.valyr.multiplayer",
+  "version": "1.2.0",
+  "displayName": "VALYR Multiplayer Addon",
+  "description": "Multiplayer replication, client-side prediction and rollback addon for VALYR powered by PurrNet and PurrDiction.",
+  "unity": "6000.0",
+  "author": {
+    "name": "Zakhar Czembrowicz (l0nnes)",
+    "url": "https://github.com/l0nnes"
+  },
+  "license": "MIT",
+  "keywords": [
+    "multiplayer",
+    "purrnet",
+    "purrdiction",
+    "prediction",
+    "rollback",
+    "vehicle",
+    "valyr"
+  ],
+  "dependencies": {
+    "com.valyr.core": "https://github.com/l0nnes/VALYR.git?path=Packages/com.valyr.core#v1.2.0",
+    "dev.purrnet.purrnet": "https://github.com/PurrNet/PurrNet.git?path=/Assets/PurrNet#release",
+    "dev.purrnet.purrdiction": "https://github.com/PurrNet/PurrDiction.git?path=/Assets/PurrDiction#release"
+  }
+}
