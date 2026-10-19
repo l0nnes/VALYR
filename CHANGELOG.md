@@ -1,3 +1,25 @@
+# [1.2.0](https://github.com/l0nnes/VALYR/compare/v1.1.0...v1.2.0) (2026-10-19)
+
+
+### Bug Fixes
+
+* **multiplayer:** fix camera hijack, input isolation, remote body sag and dynamic PhysX collisions ([7cfef44](https://github.com/l0nnes/VALYR/commit/7cfef44aabab5346eb94e53d8b289e60251c8114))
+* **multiplayer:** fix camera stealing, remote vehicle belly sag, camera slot binding and replicate doors and lights ([2faad0b](https://github.com/l0nnes/VALYR/commit/2faad0b713f719f2843d9676fe9e9b6d3e8bcc86))
+* **multiplayer:** implement kinematic proxy and collision impulse transfer to eliminate penetration and shaking ([3ba9a2d](https://github.com/l0nnes/VALYR/commit/3ba9a2df8552a5f1994afb02884e9f49bb602140))
+* **multiplayer:** optimize prediction, tick rate, and realistic collision impulse transfer ([368b574](https://github.com/l0nnes/VALYR/commit/368b574b5d40fdc6ecb0375020854bb5c0ebdd36))
+* **multiplayer:** register VehicleState packers and delta serializers for PurrDiction ([9480ce4](https://github.com/l0nnes/VALYR/commit/9480ce4e06938b244f1f81fe8baffe9f7d6abfd1))
+* **multiplayer:** replicate per-wheel angular velocities for realistic handbrake lockup ([0d85bfe](https://github.com/l0nnes/VALYR/commit/0d85bfe3ebe6c7b57cc49eb9d932f23306460331))
+
+
+### Features
+
+* **camera, input, scene:** add cockpit head look, driving inputs, terrain environment, and update scene profile ([f359d3f](https://github.com/l0nnes/VALYR/commit/f359d3ff3ef2def07de4e3c6ba8159bd5d63e755))
+* **camera, visual:** smooth camera tracking, wheel visuals interpolation, and door collider linking ([d03fb14](https://github.com/l0nnes/VALYR/commit/d03fb14f7a3780a76a6d84086f36b6714e0f02f0))
+* **camera:** fix singleplayer camera jitter, add dedicated singleplayer scene, and isolate spawn points to demo ([a045166](https://github.com/l0nnes/VALYR/commit/a045166dab6c738468009d69d860c54e0e7c1d74))
+* **multiplayer:** integrate PurrDiction client-side prediction, physical collisions, and wheel sync ([970b011](https://github.com/l0nnes/VALYR/commit/970b011daa5ead494bf4cb3820bc4c82e51f4bcf))
+* **multiplayer:** integrate Steam matchmaking, PurrLobby UI, and Steamworks overlay support ([1ce6b39](https://github.com/l0nnes/VALYR/commit/1ce6b39fbf63d1782c405573613a4c082ab52b55))
+* **multiplayer:** smooth camera, wheel visuals, door colliders, interior sync ([68b3a4c](https://github.com/l0nnes/VALYR/commit/68b3a4c27741ca97ac5dd3315e5120a4b2359977))
+
 # [1.2.0](https://github.com/l0nnes/VALYR/compare/v1.1.0...v1.2.0) (2026-10-18)
 
 
